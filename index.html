@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Epoch 1.0 — Real-Time Hackathon Judging Platform</title>
+  <meta name="description" content="Synchronized, real-time hackathon judging software with automated weighted scoring, RBAC security, and live projector leaderboard.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- =========================================================================
+       1. DEDICATED LOGIN VIEW (ENTRY SCREEN)
+       ========================================================================= -->
+  <div id="loginView" class="login-page-container">
+    <div class="login-card glass-card">
+      <div class="brand-badge" style="justify-content: center; margin-bottom: 20px;">
+        <div class="brand-logo" style="width: 44px; height: 44px; font-size: 20px;">E1</div>
+      </div>
+      <h2 style="font-size: 26px; font-weight: 800; text-align: center; margin-bottom: 6px;">Epoch 1.0 Judging</h2>
+      <p style="text-align: center; color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">
+        Sign in to access your hackathon judging portal
+      </p>
+
+      <!-- Standard Email/Password Form -->
+      <form id="loginForm" style="margin-bottom: 24px;">
+        <div style="margin-bottom: 14px;">
+          <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Email Address</label>
+          <input type="email" id="loginEmailInput" class="input-field" placeholder="e.g. admin@epoch.org or sarah@vc.com" required>
+        </div>
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Password</label>
+          <input type="password" id="loginPasswordInput" class="input-field" placeholder="••••••••" value="password123">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 12px; font-size: 15px;">
+          <span>🔐</span> Sign In to Dashboard
+        </button>
+      </form>
+
+      <!-- Quick Demo Login Buttons -->
+      <div style="border-top: 1px solid var(--border-color); padding-top: 18px;">
+        <div style="font-size: 12px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 12px; text-align: center;">
+          ⚡ Quick 1-Click Demo Login
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <button type="button" class="btn quick-login-btn" data-email="admin@epoch.org">
+            <span>⚡</span> Admin (Lead)
+          </button>
+          <button type="button" class="btn quick-login-btn" data-email="sarah@vc.com">
+            <span>⚖️</span> Judge (Sarah)
+          </button>
+          <button type="button" class="btn quick-login-btn" data-email="marcus@tech.io">
+            <span>⚖️</span> Judge (Marcus)
+          </button>
+          <button type="button" class="btn quick-login-btn" data-email="guest">
+            <span>🏆</span> Public / Guest
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       2. AUTHENTICATED APP SHELL (Shown only when logged in)
+       ========================================================================= -->
+  <div id="authenticatedAppShell" style="display: none;">
+
+    <!-- Top Navigation & User Header -->
+    <header class="top-auth-bar">
+      <div class="brand-badge">
+        <div class="brand-logo">E1</div>
+        <div>
+          <span class="brand-title">Epoch 1.0 Judging</span>
+          <span id="portalRoleSubtitle" class="brand-tag">Organizer Portal</span>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <!-- User Profile Pill -->
+        <div id="currentUserBadge" class="current-user-tag role-admin">
+          Admin Mode
+        </div>
+
+        <!-- Logout Button -->
+        <button id="btnLogout" class="btn" style="padding: 6px 14px; font-size: 13px;">
+          <span>🚪</span> Logout
+        </button>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs (Filtered dynamically by role) -->
+    <nav class="nav-container">
+      <div class="nav-tabs" role="tablist" id="roleNavTabsContainer">
+        <!-- Injected via JavaScript based on role -->
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div class="live-indicator-pill" id="btnOpenCloudDiag" style="cursor: pointer;" title="Click to test Supabase connection & diagnostics">
+          <span class="pulse-dot" id="cloudPulseDot"></span>
+          <span id="syncStatusText">⚡ Supabase Connected</span>
+        </div>
+      </div>
+    </nav>
+
+  <!-- =========================================================================
+       Main Application Views
+       ========================================================================= -->
+  <main class="main-content">
+
+    <!-- 1. ADMIN DASHBOARD VIEW -->
+    <section id="adminView" class="view-section active">
+      
+      <!-- Real-time Active Pitch Controller -->
+      <div class="active-pitch-banner">
+        <div class="pitch-details">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <span class="pulse-dot"></span>
+            <span style="font-size: 13px; font-weight: 700; color: #818cf8; text-transform: uppercase;">Live Session Controller</span>
+          </div>
+          <h2 id="adminActiveTeamName">No Active Pitch (Idle)</h2>
+          <p id="adminActiveTeamDesc" style="color: var(--text-secondary); font-size: 14px; margin-top: 4px;">Select a team from the roster below and click "Set Active" to push their rubric to all judges.</p>
+          <span id="adminActiveTeamTrack" class="pitch-track" style="display: none;">AI & Health</span>
+
+          <!-- Real-time judge submission progress -->
+          <div class="progress-section" id="adminPitchProgressContainer" style="display: none;">
+            <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 600;">
+              <span>Judge Submissions</span>
+              <span id="adminProgressText">0 / 4 Judges Submitted</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div id="adminProgressBarFill" class="progress-bar-fill"></div>
+            </div>
+            <!-- Individual Judge Status Badges -->
+            <div class="judge-tags-grid" id="adminJudgeBadgesList"></div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button id="btnMarkPitchDone" class="btn btn-success" style="display: none;">
+            <span>✓</span> Mark Pitch Done
+          </button>
+          <button id="btnExportCSV" class="btn">
+            <span>📥</span> Export Master CSV
+          </button>
+        </div>
+      </div>
+
+      <!-- Teams Management & Session Activator -->
+      <div class="glass-card">
+        <div class="card-header">
+          <div class="card-title">
+            <span>📋</span> Teams Roster & Pitch Controller
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button id="btnOpenAddTeamModal" class="btn btn-primary">
+              <span>+</span> Add Team
+            </button>
+            <button id="btnOpenBulkModal" class="btn">
+              <span>⚡</span> Bulk Import
+            </button>
+          </div>
+        </div>
+
+        <div style="overflow-x: auto;">
+          <table class="teams-table">
+            <thead>
+              <tr>
+                <th>Order</th>
+                <th>Team Name</th>
+                <th>Track</th>
+                <th>Submissions</th>
+                <th>Avg Weighted Score</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="teamsTableBody">
+              <!-- Rendered via JavaScript -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. JUDGE SCORING VIEW -->
+    <section id="judgeView" class="view-section">
+      
+      <!-- Waiting Screen (When Session is Idle) -->
+      <div id="judgeWaitingScreen" class="glass-card judge-waiting-screen">
+        <div class="waiting-icon">⏳</div>
+        <h2 style="font-size: 24px; font-weight: 800; margin-bottom: 8px;">Waiting for next team to pitch...</h2>
+        <p style="color: var(--text-secondary); max-width: 520px; margin: 0 auto 16px;">
+          You are currently in the <strong>Judge Scoring Portal</strong>. As per PRD rules, judges wait on this screen until the Admin activates a pitch.
+        </p>
+        <div style="display: flex; justify-content: center; gap: 12px; align-items: center; flex-wrap: wrap;">
+          <div style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--accent-cyan); background: rgba(6, 182, 212, 0.1); padding: 8px 16px; border-radius: var(--radius-full);">
+            <span class="pulse-dot"></span> Real-time listening active for Admin triggers
+          </div>
+          <button type="button" id="btnJudgeDemoActivate" class="btn btn-primary" style="font-size: 13px; padding: 8px 16px;">
+            <span>⚡</span> Test: Simulate Admin Starting Pitch
+          </button>
+        </div>
+      </div>
+
+      <!-- Active Scoring Rubric (When Pitch is Live) -->
+      <div id="judgeScoringForm" style="display: none;">
+        
+        <!-- Pitch Header -->
+        <div class="glass-card" style="margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <span class="brand-tag">Currently Pitching</span>
+              <h2 id="judgeTeamName" style="font-size: 26px; font-weight: 800; margin-top: 4px;">Team Alpha</h2>
+              <p id="judgeTeamDesc" style="color: var(--text-secondary); font-size: 14px;"></p>
+            </div>
+            <div id="judgeAlreadySubmittedAlert" style="display: none; background: rgba(16, 185, 129, 0.2); color: #6ee7b7; padding: 8px 16px; border-radius: var(--radius-md); font-weight: 700; border: 1px solid rgba(16, 185, 129, 0.4);">
+              ✓ Your Score Has Been Submitted & Locked
+            </div>
+          </div>
+        </div>
+
+        <!-- 6 Scoring Criteria Cards -->
+        <div id="criteriaCardsContainer"></div>
+
+        <!-- Feedback Notes -->
+        <div class="glass-card">
+          <div class="card-title" style="margin-bottom: 12px;">
+            <span>💬</span> Qualitative Feedback & Notes (Optional)
+          </div>
+          <textarea id="judgeNotesInput" class="textarea-field" rows="3" placeholder="Constructive strengths, architectural feedback, and areas for improvement..."></textarea>
+        </div>
+
+        <!-- Sticky Bottom Score Bar & Submit -->
+        <div class="live-judge-preview" id="judgeStickyBar">
+          <div>
+            <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Calculated Final Weighted Score</div>
+            <div style="display: flex; align-items: baseline; gap: 6px;">
+              <span id="judgeLiveWeightedScore" style="font-size: 28px; font-weight: 900; color: #818cf8;">0.00</span>
+              <span style="color: var(--text-secondary); font-weight: 600;">/ 10.00</span>
+            </div>
+          </div>
+          <button id="btnOpenSubmitModal" class="btn btn-primary" style="padding: 12px 28px; font-size: 16px;">
+            <span>🚀</span> Review & Submit Score
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 3. LIVE LEADERBOARD VIEW -->
+    <section id="leaderboardView" class="view-section">
+      <div class="leaderboard-hero">
+        <span class="brand-tag">Real-Time Standings</span>
+        <h1>Epoch 1.0 Leaderboard</h1>
+        <p style="color: var(--text-secondary); margin-top: 6px;">Rankings update dynamically as scoring sessions complete.</p>
+      </div>
+
+      <div class="glass-card">
+        <div style="overflow-x: auto;">
+          <table class="leaderboard-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Team</th>
+                <th>Track</th>
+                <th>Judges</th>
+                <th>Tech (25%)</th>
+                <th>Impact (20%)</th>
+                <th>Problem (15%)</th>
+                <th>Innovation (15%)</th>
+                <th>Pitch (15%)</th>
+                <th>UX (10%)</th>
+                <th>Final Score</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboardTableBody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. TEAM FEEDBACK REPORTS VIEW (POST-EVENT) -->
+    <section id="feedbackView" class="view-section">
+      <div class="glass-card">
+        <div class="card-header">
+          <div class="card-title">
+            <span>📊</span> Anonymized Team Feedback Reports
+          </div>
+          <button id="btnPrintReport" class="btn" onclick="window.print()">
+            <span>🖨️</span> Print / Save PDF
+          </button>
+        </div>
+        <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">
+          PRD Section 3.6 Compliance: Individual judge identities and raw scorecards are strictly anonymized. Teams view only the aggregated panel averages across all 6 weighted criteria.
+        </p>
+
+        <div id="feedbackReportsList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 20px;">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. SECURITY & RBAC AUDIT SUITE VIEW -->
+    <section id="auditView" class="view-section">
+      <div class="glass-card">
+        <div class="card-header">
+          <div class="card-title">
+            <span>🛡️</span> Security, URL Tampering & RBAC Penetration Tester
+          </div>
+          <button id="btnRunAudit" class="btn btn-primary">
+            <span>▶</span> Run Live Penetration Audit
+          </button>
+        </div>
+        <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 16px;">
+          Validates that URL changing, client-side tampering, duplicate score injections, and unauthorized admin overrides are physically blocked by database-level security policies (RLS).
+        </p>
+
+        <div class="audit-terminal" id="auditTerminalOutput">
+          <div style="color: #94a3b8;">Click "Run Live Penetration Audit" to execute security test suite...</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div> <!-- /authenticatedAppShell -->
+
+  <!-- =========================================================================
+       MODALS
+       ========================================================================= -->
+
+  <!-- Add Team Modal -->
+  <div id="addTeamModal" class="modal-overlay">
+    <div class="modal-box">
+      <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 16px;">Add New Team</h3>
+      <form id="addTeamForm">
+        <div style="margin-bottom: 14px;">
+          <label style="display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Team Name *</label>
+          <input type="text" id="newTeamNameInput" class="input-field" placeholder="e.g. Apex BioTech" required>
+        </div>
+        <div style="margin-bottom: 14px;">
+          <label style="display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Track / Domain</label>
+          <input type="text" id="newTeamTrackInput" class="input-field" placeholder="e.g. AI & Healthcare, Web3, FinTech">
+        </div>
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Description / Project Summary</label>
+          <textarea id="newTeamDescInput" class="textarea-field" rows="2" placeholder="Brief 1-liner summary of prototype"></textarea>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn" onclick="closeAllModals()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Team</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Bulk Import Modal -->
+  <div id="bulkImportModal" class="modal-overlay">
+    <div class="modal-box">
+      <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 16px;">Bulk Import Teams</h3>
+      <form id="bulkImportForm">
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
+          Enter 1 team per line (Format: <code>Team Name, Track</code>):
+        </p>
+        <textarea id="bulkImportTextarea" class="textarea-field" rows="6" placeholder="CyberForge, Cybersecurity&#10;Solaris AI, CleanTech&#10;OmniChain, Web3" required></textarea>
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px;">
+          <button type="button" class="btn" onclick="closeAllModals()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Import Teams</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Review & Submit Score Confirmation Modal -->
+  <div id="reviewSubmitModal" class="modal-overlay">
+    <div class="modal-box">
+      <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Confirm Score Submission</h3>
+      <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
+        Please review your scores before submitting. Once submitted, your scores are locked.
+      </p>
+
+      <div style="background: var(--bg-surface-elevated); padding: 16px; border-radius: var(--radius-md); margin-bottom: 20px; font-size: 14px;" id="modalScoreSummaryContent">
+        <!-- Generated dynamically -->
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" class="btn" onclick="closeAllModals()">Edit Scores</button>
+        <button type="button" id="btnConfirmFinalSubmit" class="btn btn-primary">Lock & Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cloud Database Diagnostics Modal -->
+  <div id="cloudDiagModal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 600px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="font-size: 20px; font-weight: 700;">⚡ Supabase Cloud Diagnostics</h3>
+        <button type="button" class="btn" style="padding: 4px 10px;" onclick="closeAllModals()">✕</button>
+      </div>
+      
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Project URL</label>
+        <input type="text" id="diagInputUrl" class="input-field" placeholder="https://xyz.supabase.co">
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Public Anon Key</label>
+        <input type="text" id="diagInputKey" class="input-field" placeholder="eyJ...">
+      </div>
+
+      <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+        <button type="button" id="btnRunCloudTest" class="btn btn-primary" style="flex: 1;">
+          <span>🔍</span> Test Connection Now
+        </button>
+        <button type="button" id="btnSaveCloudConfig" class="btn btn-success">
+          <span>💾</span> Save & Apply
+        </button>
+      </div>
+
+      <div class="audit-terminal" id="diagTerminalOutput" style="min-height: 120px; max-height: 200px; overflow-y: auto;">
+        <div style="color: #94a3b8;">Click "Test Connection Now" to verify Supabase endpoints & schema status...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="toastContainer" style="position: fixed; bottom: 24px; right: 24px; z-index: 300; display: flex; flex-direction: column; gap: 10px;"></div>
+
+  <!-- Supabase Cloud SDK & Configuration -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
+
+  <!-- Application Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
