@@ -1,5 +1,5 @@
 /**
- * Epoch 1.0 Judging Software - Standalone Client & Real-time Database Engine
+ * Epoch Judging Software - Standalone Client & Real-time Database Engine
  * Author: Person 1 (Backend + Database + Auth + Security)
  * 
  * Works 100% out of the box both via file:// (double-clicking index.html) and on web servers!
@@ -1024,7 +1024,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Check if user is already logged in or show login screen
     checkInitialAuthState();
+
+    // Smooth Temporal Preloader Dismissal (ActiveTheory style)
+    initPreloader();
 });
+
+function initPreloader() {
+    const preloader = document.getElementById('epochPreloader');
+    const statusEl = document.getElementById('chronoLoaderStatus');
+    if (!preloader) return;
+
+    setTimeout(() => {
+        if (statusEl) statusEl.textContent = 'SYNCHRONIZATION READY';
+    }, 900);
+
+    setTimeout(() => {
+        preloader.classList.add('hidden');
+    }, 1400);
+}
 
 // =============================================================================
 // LOGIN SCREEN & ROLE-BASED ROUTING
@@ -1089,7 +1106,7 @@ function initLoginUI() {
             const guestUser = { id: 'guest', full_name: 'Guest / Projector Viewer', role: 'public', email: 'guest@epoch.org' };
             localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(guestUser));
             dbService.broadcast('AUTH_CHANGED', { user: guestUser });
-            showToast('Viewing Public Leaderboard on Projector View', 'info');
+            showToast('Public Projection Display Active', 'info');
             showAppShellForUser(guestUser);
         });
     }
@@ -1097,7 +1114,7 @@ function initLoginUI() {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
             dbService.logout();
-            showToast('You have been logged out.', 'info');
+            showToast('Session terminated.', 'info');
             showLoginScreen();
         });
     }
@@ -1106,7 +1123,7 @@ function initLoginUI() {
 function handleUserLogin(identifier, password) {
     try {
         const loggedIn = dbService.authenticate(identifier, password);
-        showToast(`Welcome back, ${loggedIn.full_name}!`, 'success');
+        showToast(`Authenticated: ${loggedIn.full_name}`, 'success');
         showAppShellForUser(loggedIn);
     } catch (err) {
         showToast(err.message, 'error');
@@ -1124,42 +1141,39 @@ function renderRoleNavigation(user) {
     if (!container) return;
 
     if (!user || user.role === 'public') {
-        if (subtitle) subtitle.textContent = 'Projector View';
         container.innerHTML = `
             <button class="nav-tab-btn active" id="tabBtnLeaderboard" data-view="leaderboardView">
-                <span>🏆</span> Live Leaderboard
+                Live Leaderboard
             </button>
         `;
     } else if (user.role === 'judge') {
-        if (subtitle) subtitle.textContent = 'Judge Portal';
         container.innerHTML = `
             <button class="nav-tab-btn active" id="tabBtnJudge" data-view="judgeView">
-                <span>📝</span> Scoring Rubric
+                Evaluation Rubric
             </button>
             <button class="nav-tab-btn" id="tabBtnLeaderboard" data-view="leaderboardView">
-                <span>🏆</span> Live Leaderboard
+                Leaderboard
             </button>
             <button class="nav-tab-btn" id="tabBtnFeedback" data-view="feedbackView">
-                <span>📊</span> Team Reports
+                Team Reports
             </button>
         `;
     } else if (user.role === 'admin') {
-        if (subtitle) subtitle.textContent = 'Organizer Control Room';
         container.innerHTML = `
             <button class="nav-tab-btn active" id="tabBtnAdmin" data-view="adminView">
-                <span>⚙️</span> Pitch Controller
+                Pitch Controller
             </button>
             <button class="nav-tab-btn" id="tabBtnJudge" data-view="judgeView">
-                <span>📝</span> Judge Rubric
+                Judge Rubric
             </button>
             <button class="nav-tab-btn" id="tabBtnLeaderboard" data-view="leaderboardView">
-                <span>🏆</span> Live Leaderboard
+                Leaderboard
             </button>
             <button class="nav-tab-btn" id="tabBtnFeedback" data-view="feedbackView">
-                <span>📊</span> Feedback Reports
+                Feedback Reports
             </button>
             <button class="nav-tab-btn" id="tabBtnAudit" data-view="auditView">
-                <span>🛡️</span> Security & RBAC
+                Security & RBAC
             </button>
         `;
     }
@@ -1171,7 +1185,7 @@ function renderRoleNavigation(user) {
             const currentUser = dbService.getCurrentUser();
 
             if (targetView === 'adminView' && (!currentUser || currentUser.role !== 'admin')) {
-                showToast('⛔ Access Denied: Admin privileges required.', 'error');
+                showToast('Access Denied: Admin authorization required.', 'error');
                 return;
             }
             switchView(targetView);
@@ -1184,16 +1198,11 @@ function updateUserBadge(user) {
     if (!badge) return;
 
     if (!user || user.role === 'public') {
-        badge.textContent = '👤 Public Viewer';
-        badge.className = 'current-user-tag';
-        badge.style.background = 'rgba(255,255,255,0.1)';
-        badge.style.color = '#cbd5e1';
+        badge.textContent = '';
     } else if (user.role === 'admin') {
-        badge.textContent = `⚡ ${user.full_name}`;
-        badge.className = 'current-user-tag role-admin';
+        badge.textContent = 'Admin';
     } else {
-        badge.textContent = `⚖️ ${user.full_name}`;
-        badge.className = 'current-user-tag role-judge';
+        badge.textContent = 'Judge';
     }
 }
 
@@ -1216,11 +1225,11 @@ function switchView(viewId) {
 function handleRealtimeEvent(event) {
     refreshAllViews();
     if (event.type === 'SESSION_ACTIVATED') {
-        showToast(`🔔 Organizer activated pitch for: ${event.payload?.team?.name || 'New Team'}!`, 'info');
+        showToast(`Pitch active: ${event.payload?.team?.name || 'New Team'}`, 'info');
     } else if (event.type === 'SESSION_COMPLETED') {
-        showToast('🏁 Pitch marked done. Leaderboard updated!', 'info');
+        showToast('Pitch session completed. Leaderboard refreshed.', 'info');
     } else if (event.type === 'SCORE_SUBMITTED') {
-        showToast(`📝 Judge submitted score for ${event.payload?.score?.judge_name || 'Judge'}`, 'success');
+        showToast(`Evaluation recorded for ${event.payload?.score?.judge_name || 'Judge'}`, 'success');
     }
 }
 
@@ -1341,7 +1350,7 @@ function renderAdminDashboard() {
     const progressCont = document.getElementById('adminPitchProgressContainer');
 
     if (session.status === 'pitching' && activeTeam) {
-        nameEl.textContent = `🎯 Now Pitching: ${activeTeam.name}`;
+        nameEl.textContent = `Now Pitching: ${activeTeam.name}`;
         descEl.textContent = activeTeam.description || 'Active presentation session in progress...';
         trackEl.textContent = activeTeam.track || 'General';
         trackEl.style.display = 'inline-block';
@@ -1356,7 +1365,7 @@ function renderAdminDashboard() {
             const badgesList = document.getElementById('adminJudgeBadgesList');
             badgesList.innerHTML = progress.judgeStatusList.map(j => `
                 <div class="judge-status-badge ${j.hasSubmitted ? 'submitted' : ''}">
-                    <span>${j.hasSubmitted ? '✓' : '⏳'}</span>
+                    <span style="font-family: var(--font-mono); font-size: 11px;">${j.hasSubmitted ? 'SUBMITTED' : 'PENDING'}</span>
                     <span>${j.judgeName}</span>
                 </div>
             `).join('');
@@ -1374,12 +1383,12 @@ function renderAdminDashboard() {
     if (judgeTableBody) {
         judgeTableBody.innerHTML = judges.map((j, i) => `
             <tr>
-                <td style="font-weight: 700; color: var(--text-muted);">Judge ${i + 1}</td>
+                <td style="font-weight: 700; color: var(--text-muted); font-family: var(--font-mono);">Slot ${i + 1}</td>
                 <td>
                     <div style="font-weight: 700;">${escapeHtml(j.full_name)}</div>
                 </td>
                 <td>
-                    <code style="background: rgba(99,102,241,0.15); color: #818cf8; padding: 3px 8px; border-radius: 4px; font-weight: 600;">${escapeHtml(j.username || 'judge' + (i+1))}</code>
+                    <code style="background: rgba(212, 175, 55, 0.12); color: var(--gold-300); padding: 3px 8px; border-radius: 4px; font-weight: 600; font-family: var(--font-mono);">${escapeHtml(j.username || 'judge' + (i+1))}</code>
                 </td>
                 <td style="color: var(--text-secondary); font-size: 13px;">${escapeHtml(j.email)}</td>
                 <td>
@@ -1387,7 +1396,7 @@ function renderAdminDashboard() {
                 </td>
                 <td>
                     <button class="btn" style="padding: 6px 14px; font-size: 12px;" onclick="window.openEditJudgeModal('${j.id}')">
-                        <span>✏️</span> Edit Credentials
+                        Edit Credentials
                     </button>
                 </td>
             </tr>
@@ -1410,19 +1419,19 @@ function renderAdminDashboard() {
             : '—';
 
         return `
-            <tr style="${isActive ? 'background: rgba(99, 102, 241, 0.12);' : ''}">
-                <td style="font-weight: 700; color: var(--text-muted);">#${team.pitch_order || idx + 1}</td>
+            <tr style="${isActive ? 'background: rgba(212, 175, 55, 0.08); border-left: 2px solid var(--gold-400);' : ''}">
+                <td style="font-weight: 700; color: var(--text-muted); font-family: var(--font-mono);">#${team.pitch_order || idx + 1}</td>
                 <td>
                     <div style="font-weight: 700;">${escapeHtml(team.name)}</div>
                     <div style="font-size: 12px; color: var(--text-secondary);">${escapeHtml(team.description || '')}</div>
                 </td>
                 <td><span class="pitch-track">${escapeHtml(team.track || 'General')}</span></td>
                 <td>
-                    <span style="font-weight: 600; color: ${teamScores.length > 0 ? '#34d399' : 'var(--text-muted)'};">
+                    <span style="font-weight: 600; color: ${teamScores.length > 0 ? '#34d399' : 'var(--text-muted)'}; font-family: var(--font-mono); font-size: 12.5px;">
                         ${teamScores.length} judges
                     </span>
                 </td>
-                <td style="font-weight: 800; color: #818cf8; font-size: 15px;">${avgScore}</td>
+                <td style="font-weight: 800; color: var(--gold-300); font-size: 15px; font-family: var(--font-mono);">${avgScore}</td>
                 <td>
                     <div style="display: flex; gap: 8px;">
                         ${isActive ? `
@@ -1504,7 +1513,7 @@ function initCriteriaRubricUI() {
             <div style="display: flex; align-items: center; gap: 12px;">
                 <input type="range" class="range-slider" min="1" max="10" step="0.5" value="8" 
                        id="slider_${c.id}" data-criteria="${c.id}">
-                <span id="label_${c.id}" style="font-weight: 800; font-size: 16px; width: 36px; text-align: right; color: var(--accent-cyan);">8.0</span>
+                <span id="label_${c.id}" style="font-weight: 800; font-size: 16px; width: 36px; text-align: right; color: var(--gold-300); font-family: var(--font-mono);">8.0</span>
             </div>
         </div>
     `).join('');
@@ -1574,7 +1583,7 @@ function initJudgeActions() {
             </div>
             <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px; display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-weight: 700;">Final Weighted Score:</span>
-                <span style="font-size: 20px; font-weight: 900; color: #818cf8;">${weighted.toFixed(2)} / 10.00</span>
+                <span style="font-size: 20px; font-weight: 900; color: var(--gold-300); font-family: var(--font-mono);">${weighted.toFixed(2)} / 10.00</span>
             </div>
         `;
 
@@ -1596,7 +1605,7 @@ function initJudgeActions() {
         try {
             dbService.submitScore(payload, currentUser);
             closeAllModals();
-            showToast('🎉 Your score has been safely locked and submitted!', 'success');
+            showToast('Evaluation scorecard locked and synchronized.', 'success');
             refreshAllViews();
         } catch (err) {
             closeAllModals();
@@ -1639,7 +1648,7 @@ function renderJudgeView() {
         } else {
             submittedAlert.style.display = 'none';
             submitBtn.disabled = false;
-            submitBtn.innerHTML = `<span>🚀</span> Review & Submit Score`;
+            submitBtn.textContent = 'Review & Lock Score';
             submitBtn.style.opacity = '1';
         }
 
@@ -1703,7 +1712,7 @@ function renderFeedbackView() {
                         <span class="pitch-track">${escapeHtml(team.track || 'General')}</span>
                     </div>
                     <div style="text-align: right;">
-                        <div style="font-size: 22px; font-weight: 900; color: #818cf8;">${averages.overallScore.toFixed(2)}</div>
+                        <div style="font-size: 22px; font-weight: 900; color: var(--gold-300); font-family: var(--font-mono);">${averages.overallScore.toFixed(2)}</div>
                         <div style="font-size: 11px; color: var(--text-muted);">${averages.judgeCount} Judges Averaged</div>
                     </div>
                 </div>
@@ -1832,9 +1841,9 @@ async function runCloudDiagnosticsTest() {
         const allOk = teamsRes.ok && sessRes.ok && scoresRes.ok;
         if (allOk) {
             dbService.isCloudConnected = true;
-            logs.push(`<div style="color: #34d399; font-weight: bold; margin-top: 8px;">🎉 ALL TESTS PASSED! Supabase PostgreSQL is 100% active and connected!</div>`);
+            logs.push(`<div style="color: #34d399; font-weight: bold; margin-top: 8px;">[SUCCESS] All verification vectors verified. PostgreSQL is 100% active and connected.</div>`);
         } else {
-            logs.push(`<div style="color: #fbbf24; font-weight: bold; margin-top: 8px;">⚠️ ACTION REQUIRED: Go to Supabase -> SQL Editor, paste database/schema.sql, and click RUN.</div>`);
+            logs.push(`<div style="color: #fbbf24; font-weight: bold; margin-top: 8px;">[ACTION REQUIRED] Schema not initialized. Execute database/schema.sql in Supabase SQL editor.</div>`);
         }
 
         term.innerHTML = logs.join('');
@@ -1863,7 +1872,7 @@ function initSecurityAuditUI() {
             results.forEach((res, i) => {
                 html += `
                     <div class="audit-item ${res.passed ? 'passed' : 'failed'}">
-                        <div><strong>[TEST ${i + 1}] ${res.test}:</strong> ${res.passed ? '✓ SECURE' : '✗ VULNERABILITY DETECTED'}</div>
+                        <div><strong>[TEST ${i + 1}] ${res.test}:</strong> ${res.passed ? 'PASSED / SECURE' : 'FAILED / VULNERABILITY DETECTED'}</div>
                         <div style="font-size: 12px; margin-top: 4px; opacity: 0.85;">${res.details}</div>
                     </div>
                 `;
@@ -1897,24 +1906,35 @@ function showToast(msg, type = 'info') {
     if (!container) return;
     const toast = document.createElement('div');
     toast.className = 'glass-card';
+    const bgGradient = type === 'error' 
+        ? 'linear-gradient(135deg, rgba(244, 63, 94, 0.95), rgba(190, 18, 60, 0.95))' 
+        : type === 'success' 
+        ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(5, 150, 105, 0.95))' 
+        : 'linear-gradient(135deg, rgba(22, 25, 36, 0.95), rgba(12, 13, 18, 0.95))';
+    const border = type === 'info' ? '1px solid var(--gold-400)' : '1px solid rgba(255,255,255,0.2)';
+    const textColor = type === 'info' ? 'var(--gold-300)' : '#ffffff';
+
     toast.style.cssText = `
-        padding: 12px 20px;
+        padding: 14px 22px;
         margin: 0;
-        font-size: 14px;
+        font-size: 13.5px;
         font-weight: 600;
+        letter-spacing: 0.3px;
         border-radius: var(--radius-md);
-        box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-        color: #fff;
-        background: ${type === 'error' ? 'rgba(244, 63, 94, 0.9)' : type === 'success' ? 'rgba(16, 185, 129, 0.9)' : 'rgba(99, 102, 241, 0.9)'};
-        animation: fadeIn 0.2s ease;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.7), var(--shadow-gold);
+        color: ${textColor};
+        background: ${bgGradient};
+        border: ${border};
+        animation: temporalFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     `;
     toast.textContent = msg;
     container.appendChild(toast);
 
     setTimeout(() => {
         toast.style.opacity = '0';
-        toast.style.transition = 'opacity 0.3s ease';
-        setTimeout(() => toast.remove(), 300);
+        toast.style.transform = 'translateY(10px)';
+        toast.style.transition = 'all 0.4s ease';
+        setTimeout(() => toast.remove(), 400);
     }, 3500);
 }
 

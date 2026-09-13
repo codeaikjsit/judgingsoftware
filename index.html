@@ -3,48 +3,78 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Epoch 1.0 — Real-Time Hackathon Judging Platform</title>
-  <meta name="description" content="Synchronized, real-time hackathon judging software with automated weighted scoring, RBAC security, and live projector leaderboard.">
+  <title>Epoch — Hackathon Judging & Evaluation Architecture</title>
+  <meta name="description" content="Precision hackathon evaluation engine with mathematical normalization, RBAC security, and live projection feed.">
+  
+  <!-- Modern Monospace & High-End Geometric Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+
+  <!-- Starfield background -->
+  <canvas id="starfieldCanvas"></canvas>
+
+  <!-- =========================================================================
+       0. ACTIVETHEORY-INSPIRED TEMPORAL CLOCK PRELOADER
+       ========================================================================= -->
+  <div id="epochPreloader" class="chrono-preloader">
+    <div class="chrono-loader-wrapper">
+      <div class="chrono-clock-ring">
+        <svg class="clock-svg" viewBox="0 0 120 120">
+          <circle class="clock-track" cx="60" cy="60" r="54"></circle>
+          <circle class="clock-progress" cx="60" cy="60" r="54"></circle>
+          <line class="clock-hand hour-hand" x1="60" y1="60" x2="60" y2="34"></line>
+          <line class="clock-hand minute-hand" x1="60" y1="60" x2="60" y2="22"></line>
+          <circle class="clock-center-dot" cx="60" cy="60" r="3"></circle>
+        </svg>
+      </div>
+      <div class="chrono-loader-meta">
+        <span class="chrono-loader-title">EPOCH</span>
+        <span class="chrono-loader-status" id="chronoLoaderStatus">CALIBRATING TEMPORAL REGISTRY</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ambient Light Time Stream -->
+  <div class="time-stream-bar"></div>
 
   <!-- =========================================================================
        1. DEDICATED LOGIN VIEW (ENTRY SCREEN)
        ========================================================================= -->
   <div id="loginView" class="login-page-container">
     <div class="login-card glass-card">
-      <div class="brand-badge" style="justify-content: center; margin-bottom: 20px;">
-        <div class="brand-logo" style="width: 44px; height: 44px; font-size: 20px;">E1</div>
+      <div class="brand-badge-clean" style="text-align: center; margin-bottom: 24px;">
+        <h1 class="brand-wordmark">EPOCH</h1>
+        <p class="brand-descriptor">Real-Time Evaluation Architecture</p>
       </div>
-      <h2 style="font-size: 26px; font-weight: 800; text-align: center; margin-bottom: 6px;">Epoch 1.0 Judging</h2>
-      <p style="text-align: center; color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">
-        Sign in to access your hackathon portal
-      </p>
 
       <!-- Error Message Banner -->
-      <div id="loginErrorMessage" style="display: none; background: rgba(244, 63, 94, 0.15); border: 1px solid rgba(244, 63, 94, 0.4); color: #f87171; padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 16px; text-align: center;">
+      <div id="loginErrorMessage" style="display: none; background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.3); color: #fda4af; padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 16px; text-align: center;">
       </div>
 
       <!-- Dedicated Authentication Form -->
       <form id="loginForm">
         <div style="margin-bottom: 16px;">
-          <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Username or Email</label>
-          <input type="text" id="loginIdentifierInput" class="input-field" placeholder="e.g. admin or judge1 (or email)" required autocomplete="username">
+          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--gold-400); margin-bottom: 6px; letter-spacing: 1px; text-transform: uppercase;">Identifier</label>
+          <input type="text" id="loginIdentifierInput" class="input-field" placeholder="admin / judge1 / email" required autocomplete="username">
         </div>
         <div style="margin-bottom: 22px;">
-          <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Password</label>
-          <input type="password" id="loginPasswordInput" class="input-field" placeholder="Enter your password" required autocomplete="current-password">
+          <label style="display: block; font-size: 11px; font-weight: 700; color: var(--gold-400); margin-bottom: 6px; letter-spacing: 1px; text-transform: uppercase;">Passkey</label>
+          <input type="password" id="loginPasswordInput" class="input-field" placeholder="Enter passkey" required autocomplete="current-password">
         </div>
-        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 12px; font-size: 15px; font-weight: 700;">
-          <span>🔐</span> Sign In to Portal
+        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 13px; font-size: 14px; font-weight: 700; letter-spacing: 0.5px;">
+          Authenticate Session
         </button>
       </form>
 
       <!-- Public Projector Access Link -->
       <div style="border-top: 1px solid var(--border-color); padding-top: 18px; margin-top: 24px; text-align: center;">
-        <button type="button" id="btnPublicLeaderboardLogin" class="btn" style="width: 100%; justify-content: center; background: rgba(255, 255, 255, 0.04); font-size: 13px;">
-          <span>🏆</span> Public / Projector Display View
+        <button type="button" id="btnPublicLeaderboardLogin" class="btn" style="width: 100%; justify-content: center; background: rgba(255, 255, 255, 0.02); font-size: 12.5px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-secondary);">
+          Launch Public Projection View
         </button>
       </div>
     </div>
@@ -57,23 +87,17 @@
 
     <!-- Top Navigation & User Header -->
     <header class="top-auth-bar">
-      <div class="brand-badge">
-        <div class="brand-logo">E1</div>
-        <div>
-          <span class="brand-title">Epoch 1.0 Judging</span>
-          <span id="portalRoleSubtitle" class="brand-tag">Organizer Portal</span>
-        </div>
+      <div class="brand-badge-clean">
+        <span class="brand-title">EPOCH</span>
       </div>
 
       <div style="display: flex; align-items: center; gap: 12px;">
-        <!-- User Profile Pill -->
-        <div id="currentUserBadge" class="current-user-tag role-admin">
-          Admin Mode
-        </div>
+        <!-- User Role Label -->
+        <span id="currentUserBadge" style="font-size: 13px; font-weight: 500; color: var(--text-secondary); letter-spacing: 0.2px;">Admin</span>
 
         <!-- Logout Button -->
-        <button id="btnLogout" class="btn" style="padding: 6px 14px; font-size: 13px;">
-          <span>🚪</span> Logout
+        <button id="btnLogout" class="btn" style="padding: 6px 14px; font-size: 12.5px; letter-spacing: 0.5px;">
+          Disconnect
         </button>
       </div>
     </header>
@@ -84,12 +108,7 @@
         <!-- Injected via JavaScript based on role -->
       </div>
 
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <div class="live-indicator-pill" id="btnOpenCloudDiag" style="cursor: pointer;" title="Click to test Supabase connection & diagnostics">
-          <span class="pulse-dot" id="cloudPulseDot"></span>
-          <span id="syncStatusText">⚡ Supabase Connected</span>
-        </div>
-      </div>
+
     </nav>
 
   <!-- =========================================================================
@@ -105,7 +124,7 @@
         <div class="pitch-details">
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
             <span class="pulse-dot"></span>
-            <span style="font-size: 13px; font-weight: 700; color: #818cf8; text-transform: uppercase;">Live Session Controller</span>
+            <span style="font-size: 11px; font-weight: 700; color: var(--gold-400); text-transform: uppercase; letter-spacing: 1px;">Live Session Controller</span>
           </div>
           <h2 id="adminActiveTeamName">No Active Pitch (Idle)</h2>
           <p id="adminActiveTeamDesc" style="color: var(--text-secondary); font-size: 14px; margin-top: 4px;">Select a team from the roster below and click "Set Active" to push their rubric to all judges.</p>
@@ -113,7 +132,7 @@
 
           <!-- Real-time judge submission progress -->
           <div class="progress-section" id="adminPitchProgressContainer" style="display: none;">
-            <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 600;">
+            <div style="display: flex; justify-content: space-between; font-size: 12.5px; font-weight: 600;">
               <span>Judge Submissions</span>
               <span id="adminProgressText">0 / 4 Judges Submitted</span>
             </div>
@@ -127,10 +146,10 @@
 
         <div style="display: flex; gap: 10px; align-items: center;">
           <button id="btnMarkPitchDone" class="btn btn-success" style="display: none;">
-            <span>✓</span> Mark Pitch Done
+            Mark Pitch Complete
           </button>
           <button id="btnExportCSV" class="btn">
-            <span>📥</span> Export Master CSV
+            Export Master CSV
           </button>
         </div>
       </div>
@@ -139,22 +158,22 @@
       <div class="glass-card" style="margin-bottom: 24px;">
         <div class="card-header">
           <div class="card-title">
-            <span>⚖️</span> Judge Accounts & Credential Management
+            Judge Registry & Authentication Node
           </div>
-          <span class="brand-tag" style="background: rgba(99, 102, 241, 0.15); color: #a5b4fc;">4 Panel Judges Active</span>
+          <span class="brand-tag">4 Panel Judges Configured</span>
         </div>
         <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;">
-          Manage the 4 dedicated judge panel accounts. As an admin, you can edit display names, usernames, emails, and set login passwords.
+          Manage the 4 dedicated judge panel accounts. As an admin, you can edit display names, usernames, emails, and set login passkeys.
         </p>
         <div style="overflow-x: auto;">
           <table class="teams-table">
             <thead>
               <tr>
-                <th>Judge Slot</th>
+                <th>Slot</th>
                 <th>Full Name</th>
-                <th>Username</th>
+                <th>Identifier</th>
                 <th>Email Address</th>
-                <th>Password</th>
+                <th>Passkey</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -169,14 +188,14 @@
       <div class="glass-card">
         <div class="card-header">
           <div class="card-title">
-            <span>📋</span> Teams Roster & Pitch Controller
+            Team Roster & Pitch Stream
           </div>
           <div style="display: flex; gap: 10px;">
             <button id="btnOpenAddTeamModal" class="btn btn-primary">
-              <span>+</span> Add Team
+              + Register Team
             </button>
             <button id="btnOpenBulkModal" class="btn">
-              <span>⚡</span> Bulk Import
+              Batch Import
             </button>
           </div>
         </div>
@@ -187,7 +206,7 @@
               <tr>
                 <th>Order</th>
                 <th>Team Name</th>
-                <th>Track</th>
+                <th>Domain Track</th>
                 <th>Submissions</th>
                 <th>Avg Weighted Score</th>
                 <th>Actions</th>
@@ -206,17 +225,22 @@
       
       <!-- Waiting Screen (When Session is Idle) -->
       <div id="judgeWaitingScreen" class="glass-card judge-waiting-screen">
-        <div class="waiting-icon">⏳</div>
-        <h2 style="font-size: 24px; font-weight: 800; margin-bottom: 8px;">Waiting for next team to pitch...</h2>
-        <p style="color: var(--text-secondary); max-width: 520px; margin: 0 auto 16px;">
-          You are currently in the <strong>Judge Scoring Portal</strong>. As per PRD rules, judges wait on this screen until the Admin activates a pitch.
+        <div class="chrono-pendulum-indicator">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--gold-400)" stroke-width="1.5">
+            <circle cx="12" cy="12" r="9"></circle>
+            <polyline points="12 7 12 12 15 15"></polyline>
+          </svg>
+        </div>
+        <h2 style="font-size: 22px; font-weight: 700; margin-bottom: 8px; letter-spacing: 0.5px;">Awaiting Pitch Activation</h2>
+        <p style="color: var(--text-secondary); max-width: 520px; margin: 0 auto 16px; font-size: 13.5px;">
+          The judging portal is synchronized. The evaluation rubric will automatically activate on this node when the Lead Organizer triggers a team pitch.
         </p>
         <div style="display: flex; justify-content: center; gap: 12px; align-items: center; flex-wrap: wrap;">
-          <div style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--accent-cyan); background: rgba(6, 182, 212, 0.1); padding: 8px 16px; border-radius: var(--radius-full);">
+          <div style="display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--gold-300); background: rgba(212, 175, 55, 0.08); border: 1px solid var(--border-gold-subtle); padding: 8px 16px; border-radius: var(--radius-full);">
             <span class="pulse-dot"></span> Real-time listening active for Admin triggers
           </div>
-          <button type="button" id="btnJudgeDemoActivate" class="btn btn-primary" style="font-size: 13px; padding: 8px 16px;">
-            <span>⚡</span> Test: Simulate Admin Starting Pitch
+          <button type="button" id="btnJudgeDemoActivate" class="btn btn-primary" style="font-size: 12.5px; padding: 8px 16px;">
+            Simulate Admin Pitch Activation
           </button>
         </div>
       </div>
@@ -229,11 +253,11 @@
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
             <div>
               <span class="brand-tag">Currently Pitching</span>
-              <h2 id="judgeTeamName" style="font-size: 26px; font-weight: 800; margin-top: 4px;">Team Alpha</h2>
+              <h2 id="judgeTeamName" style="font-size: 24px; font-weight: 800; margin-top: 4px;">Team Alpha</h2>
               <p id="judgeTeamDesc" style="color: var(--text-secondary); font-size: 14px;"></p>
             </div>
-            <div id="judgeAlreadySubmittedAlert" style="display: none; background: rgba(16, 185, 129, 0.2); color: #6ee7b7; padding: 8px 16px; border-radius: var(--radius-md); font-weight: 700; border: 1px solid rgba(16, 185, 129, 0.4);">
-              ✓ Your Score Has Been Submitted & Locked
+            <div id="judgeAlreadySubmittedAlert" style="display: none; background: rgba(16, 185, 129, 0.15); color: #6ee7b7; padding: 8px 16px; border-radius: var(--radius-md); font-weight: 700; border: 1px solid rgba(16, 185, 129, 0.3);">
+              Evaluation Submitted & Locked
             </div>
           </div>
         </div>
@@ -244,22 +268,22 @@
         <!-- Feedback Notes -->
         <div class="glass-card">
           <div class="card-title" style="margin-bottom: 12px;">
-            <span>💬</span> Qualitative Feedback & Notes (Optional)
+            Qualitative Architecture Notes (Optional)
           </div>
-          <textarea id="judgeNotesInput" class="textarea-field" rows="3" placeholder="Constructive strengths, architectural feedback, and areas for improvement..."></textarea>
+          <textarea id="judgeNotesInput" class="textarea-field" rows="3" placeholder="Constructive technical observations, architectural strengths, and critical feedback..."></textarea>
         </div>
 
         <!-- Sticky Bottom Score Bar & Submit -->
         <div class="live-judge-preview" id="judgeStickyBar">
           <div>
-            <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Calculated Final Weighted Score</div>
+            <div style="font-size: 11px; color: var(--gold-400); text-transform: uppercase; font-weight: 700; letter-spacing: 1px;">Calculated Composite Weighted Score</div>
             <div style="display: flex; align-items: baseline; gap: 6px;">
-              <span id="judgeLiveWeightedScore" style="font-size: 28px; font-weight: 900; color: #818cf8;">0.00</span>
+              <span id="judgeLiveWeightedScore" style="font-size: 28px; font-weight: 900; color: #ffffff; font-family: 'Space Mono', monospace;">0.00</span>
               <span style="color: var(--text-secondary); font-weight: 600;">/ 10.00</span>
             </div>
           </div>
-          <button id="btnOpenSubmitModal" class="btn btn-primary" style="padding: 12px 28px; font-size: 16px;">
-            <span>🚀</span> Review & Submit Score
+          <button id="btnOpenSubmitModal" class="btn btn-primary" style="padding: 12px 28px; font-size: 15px;">
+            Review & Lock Score
           </button>
         </div>
 
@@ -269,9 +293,9 @@
     <!-- 3. LIVE LEADERBOARD VIEW -->
     <section id="leaderboardView" class="view-section">
       <div class="leaderboard-hero">
-        <span class="brand-tag">Real-Time Standings</span>
-        <h1>Epoch 1.0 Leaderboard</h1>
-        <p style="color: var(--text-secondary); margin-top: 6px;">Rankings update dynamically as scoring sessions complete.</p>
+        <span class="brand-tag">Real-Time Evaluation Mesh</span>
+        <h1>Epoch Leaderboard</h1>
+        <p style="color: var(--text-secondary); margin-top: 6px;">Dynamically normalized rankings update continuously across all judging terminals.</p>
       </div>
 
       <div class="glass-card">
@@ -289,7 +313,7 @@
                 <th>Innovation (15%)</th>
                 <th>Pitch (15%)</th>
                 <th>UX (10%)</th>
-                <th>Final Score</th>
+                <th>Composite Score</th>
               </tr>
             </thead>
             <tbody id="leaderboardTableBody">
@@ -305,14 +329,14 @@
       <div class="glass-card">
         <div class="card-header">
           <div class="card-title">
-            <span>📊</span> Anonymized Team Feedback Reports
+            Anonymized Evaluation Reports
           </div>
           <button id="btnPrintReport" class="btn" onclick="window.print()">
-            <span>🖨️</span> Print / Save PDF
+            Print / Export PDF
           </button>
         </div>
-        <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">
-          PRD Section 3.6 Compliance: Individual judge identities and raw scorecards are strictly anonymized. Teams view only the aggregated panel averages across all 6 weighted criteria.
+        <p style="color: var(--text-secondary); font-size: 13.5px; margin-bottom: 20px;">
+          Compliance: Individual evaluator identities remain cryptographically anonymized. Teams inspect panel aggregated metrics across all weighted dimensions.
         </p>
 
         <div id="feedbackReportsList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 20px;">
@@ -326,18 +350,18 @@
       <div class="glass-card">
         <div class="card-header">
           <div class="card-title">
-            <span>🛡️</span> Security, URL Tampering & RBAC Penetration Tester
+            Security & Cryptographic RBAC Penetration Suite
           </div>
           <button id="btnRunAudit" class="btn btn-primary">
-            <span>▶</span> Run Live Penetration Audit
+            Run Verification Suite
           </button>
         </div>
-        <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 16px;">
-          Validates that URL changing, client-side tampering, duplicate score injections, and unauthorized admin overrides are physically blocked by database-level security policies (RLS).
+        <p style="color: var(--text-secondary); font-size: 13.5px; margin-bottom: 16px;">
+          Validates that unauthorized parameter mutations, duplicate submission vectors, and privilege escalation attacks are blocked by PostgreSQL Row-Level Security.
         </p>
 
         <div class="audit-terminal" id="auditTerminalOutput">
-          <div style="color: #94a3b8;">Click "Run Live Penetration Audit" to execute security test suite...</div>
+          <div style="color: #94a3b8;">Click "Run Verification Suite" to initialize test vectors...</div>
         </div>
       </div>
     </section>
@@ -352,19 +376,19 @@
   <!-- Add Team Modal -->
   <div id="addTeamModal" class="modal-overlay">
     <div class="modal-box">
-      <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 16px;">Add New Team</h3>
+      <h3 style="font-size: 19px; font-weight: 700; margin-bottom: 16px; letter-spacing: 0.5px;">Register Team</h3>
       <form id="addTeamForm">
         <div style="margin-bottom: 14px;">
-          <label style="display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Team Name *</label>
+          <label style="display: block; font-size: 12px; color: var(--gold-400); margin-bottom: 6px; font-weight: 700; text-transform: uppercase;">Team Name *</label>
           <input type="text" id="newTeamNameInput" class="input-field" placeholder="e.g. Apex BioTech" required>
         </div>
         <div style="margin-bottom: 14px;">
-          <label style="display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Track / Domain</label>
+          <label style="display: block; font-size: 12px; color: var(--gold-400); margin-bottom: 6px; font-weight: 700; text-transform: uppercase;">Domain Track</label>
           <input type="text" id="newTeamTrackInput" class="input-field" placeholder="e.g. AI & Healthcare, Web3, FinTech">
         </div>
         <div style="margin-bottom: 20px;">
-          <label style="display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Description / Project Summary</label>
-          <textarea id="newTeamDescInput" class="textarea-field" rows="2" placeholder="Brief 1-liner summary of prototype"></textarea>
+          <label style="display: block; font-size: 12px; color: var(--gold-400); margin-bottom: 6px; font-weight: 700; text-transform: uppercase;">Prototype Summary</label>
+          <textarea id="newTeamDescInput" class="textarea-field" rows="2" placeholder="Brief technical summary of prototype"></textarea>
         </div>
         <div style="display: flex; justify-content: flex-end; gap: 10px;">
           <button type="button" class="btn" onclick="closeAllModals()">Cancel</button>
@@ -377,7 +401,7 @@
   <!-- Bulk Import Modal -->
   <div id="bulkImportModal" class="modal-overlay">
     <div class="modal-box">
-      <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 16px;">Bulk Import Teams</h3>
+      <h3 style="font-size: 19px; font-weight: 700; margin-bottom: 16px; letter-spacing: 0.5px;">Batch Import Teams</h3>
       <form id="bulkImportForm">
         <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
           Enter 1 team per line (Format: <code>Team Name, Track</code>):
@@ -394,9 +418,9 @@
   <!-- Review & Submit Score Confirmation Modal -->
   <div id="reviewSubmitModal" class="modal-overlay">
     <div class="modal-box">
-      <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Confirm Score Submission</h3>
-      <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
-        Please review your scores before submitting. Once submitted, your scores are locked.
+      <h3 style="font-size: 19px; font-weight: 700; margin-bottom: 8px; letter-spacing: 0.5px;">Confirm Scorecard Lock</h3>
+      <p style="font-size: 13.5px; color: var(--text-secondary); margin-bottom: 16px;">
+        Please review your dimension scores. Once locked, submissions cannot be altered.
       </p>
 
       <div style="background: var(--bg-surface-elevated); padding: 16px; border-radius: var(--radius-md); margin-bottom: 20px; font-size: 14px;" id="modalScoreSummaryContent">
@@ -404,8 +428,8 @@
       </div>
 
       <div style="display: flex; justify-content: flex-end; gap: 10px;">
-        <button type="button" class="btn" onclick="closeAllModals()">Edit Scores</button>
-        <button type="button" id="btnConfirmFinalSubmit" class="btn btn-primary">Lock & Submit</button>
+        <button type="button" class="btn" onclick="closeAllModals()">Modify Scores</button>
+        <button type="button" id="btnConfirmFinalSubmit" class="btn btn-primary">Lock & Transmit</button>
       </div>
     </div>
   </div>
@@ -413,36 +437,36 @@
   <!-- Edit Judge Modal (Admin Only) -->
   <div id="editJudgeModal" class="modal-overlay">
     <div class="modal-box">
-      <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Edit Judge Credentials</h3>
+      <h3 style="font-size: 19px; font-weight: 700; margin-bottom: 8px; letter-spacing: 0.5px;">Modify Judge Credentials</h3>
       <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
-        Update the judge's full name, login username, email, and access password.
+        Update the evaluator's display name, authentication identifier, and passkey.
       </p>
       <form id="editJudgeForm">
         <input type="hidden" id="editJudgeIdInput">
         
         <div style="margin-bottom: 14px;">
-          <label style="display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Judge Full Name *</label>
+          <label style="display: block; font-size: 12px; color: var(--gold-400); margin-bottom: 6px; font-weight: 700; text-transform: uppercase;">Full Name *</label>
           <input type="text" id="editJudgeNameInput" class="input-field" placeholder="e.g. Sarah Chen (Judge 1)" required>
         </div>
 
         <div style="margin-bottom: 14px;">
-          <label style="display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Username (For Login) *</label>
+          <label style="display: block; font-size: 12px; color: var(--gold-400); margin-bottom: 6px; font-weight: 700; text-transform: uppercase;">Identifier *</label>
           <input type="text" id="editJudgeUsernameInput" class="input-field" placeholder="e.g. judge1" required>
         </div>
 
         <div style="margin-bottom: 14px;">
-          <label style="display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Email Address *</label>
+          <label style="display: block; font-size: 12px; color: var(--gold-400); margin-bottom: 6px; font-weight: 700; text-transform: uppercase;">Email Address *</label>
           <input type="email" id="editJudgeEmailInput" class="input-field" placeholder="e.g. sarah@vc.com" required>
         </div>
 
         <div style="margin-bottom: 20px;">
-          <label style="display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Password *</label>
+          <label style="display: block; font-size: 12px; color: var(--gold-400); margin-bottom: 6px; font-weight: 700; text-transform: uppercase;">Passkey *</label>
           <input type="text" id="editJudgePasswordInput" class="input-field" placeholder="e.g. password123" required>
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 10px;">
           <button type="button" class="btn" onclick="closeAllModals()">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save Changes</button>
+          <button type="submit" class="btn btn-primary">Save Node Credentials</button>
         </div>
       </form>
     </div>
@@ -452,31 +476,31 @@
   <div id="cloudDiagModal" class="modal-overlay">
     <div class="modal-box" style="max-width: 600px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <h3 style="font-size: 20px; font-weight: 700;">⚡ Supabase Cloud Diagnostics</h3>
+        <h3 style="font-size: 19px; font-weight: 700; letter-spacing: 0.5px;">Cluster Database Diagnostics</h3>
         <button type="button" class="btn" style="padding: 4px 10px;" onclick="closeAllModals()">✕</button>
       </div>
       
       <div style="margin-bottom: 16px;">
-        <label style="display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Project URL</label>
+        <label style="display: block; font-size: 11px; font-weight: 700; color: var(--gold-400); margin-bottom: 4px; text-transform: uppercase;">Cluster Endpoint URL</label>
         <input type="text" id="diagInputUrl" class="input-field" placeholder="https://xyz.supabase.co">
       </div>
 
       <div style="margin-bottom: 16px;">
-        <label style="display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Public Anon Key</label>
+        <label style="display: block; font-size: 11px; font-weight: 700; color: var(--gold-400); margin-bottom: 4px; text-transform: uppercase;">Client Anon Token</label>
         <input type="text" id="diagInputKey" class="input-field" placeholder="eyJ...">
       </div>
 
       <div style="display: flex; gap: 10px; margin-bottom: 20px;">
         <button type="button" id="btnRunCloudTest" class="btn btn-primary" style="flex: 1;">
-          <span>🔍</span> Test Connection Now
+          Verify Connection
         </button>
         <button type="button" id="btnSaveCloudConfig" class="btn btn-success">
-          <span>💾</span> Save & Apply
+          Save & Synchronize
         </button>
       </div>
 
       <div class="audit-terminal" id="diagTerminalOutput" style="min-height: 120px; max-height: 200px; overflow-y: auto;">
-        <div style="color: #94a3b8;">Click "Test Connection Now" to verify Supabase endpoints & schema status...</div>
+        <div style="color: #94a3b8;">Click "Verify Connection" to test PostgreSQL nodes & schema status...</div>
       </div>
     </div>
   </div>
@@ -490,5 +514,71 @@
 
   <!-- Application Logic -->
   <script src="app.js"></script>
+  <!-- Starfield Animation -->
+  <script>
+  (function () {
+    const canvas = document.getElementById('starfieldCanvas');
+    const ctx = canvas.getContext('2d');
+    let stars = [];
+    const STAR_COUNT = 260;
+
+    function resize() {
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+
+    function randomBetween(a, b) { return a + Math.random() * (b - a); }
+
+    function createStar() {
+      // Slight warm tint on ~20% of stars to feel gold-adjacent
+      const warm = Math.random() < 0.18;
+      return {
+        x:        randomBetween(0, canvas.width),
+        y:        randomBetween(0, canvas.height),
+        radius:   randomBetween(0.3, 1.4),
+        baseOpacity: randomBetween(0.15, 0.75),
+        opacity:  0,
+        speed:    randomBetween(0.004, 0.018), // twinkle speed
+        phase:    randomBetween(0, Math.PI * 2),
+        warm:     warm
+      };
+    }
+
+    function init() {
+      resize();
+      stars = Array.from({ length: STAR_COUNT }, createStar);
+    }
+
+    function draw(ts) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const t = ts * 0.001;
+      for (const s of stars) {
+        s.opacity = s.baseOpacity * (0.5 + 0.5 * Math.sin(t * s.speed * 60 + s.phase));
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+        if (s.warm) {
+          ctx.fillStyle = `rgba(243, 206, 94, ${s.opacity})`;
+        } else {
+          ctx.fillStyle = `rgba(225, 232, 245, ${s.opacity})`;
+        }
+        ctx.fill();
+      }
+      requestAnimationFrame(draw);
+    }
+
+    window.addEventListener('resize', () => {
+      resize();
+      // Reposition stars on resize
+      stars.forEach(s => {
+        s.x = randomBetween(0, canvas.width);
+        s.y = randomBetween(0, canvas.height);
+      });
+    });
+
+    init();
+    requestAnimationFrame(draw);
+  })();
+  </script>
+
 </body>
 </html>
