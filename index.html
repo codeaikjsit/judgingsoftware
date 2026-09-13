@@ -19,43 +19,33 @@
       </div>
       <h2 style="font-size: 26px; font-weight: 800; text-align: center; margin-bottom: 6px;">Epoch 1.0 Judging</h2>
       <p style="text-align: center; color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">
-        Sign in to access your hackathon judging portal
+        Sign in to access your hackathon portal
       </p>
 
-      <!-- Standard Email/Password Form -->
-      <form id="loginForm" style="margin-bottom: 24px;">
-        <div style="margin-bottom: 14px;">
-          <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Email Address</label>
-          <input type="email" id="loginEmailInput" class="input-field" placeholder="e.g. admin@epoch.org or sarah@vc.com" required>
+      <!-- Error Message Banner -->
+      <div id="loginErrorMessage" style="display: none; background: rgba(244, 63, 94, 0.15); border: 1px solid rgba(244, 63, 94, 0.4); color: #f87171; padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 16px; text-align: center;">
+      </div>
+
+      <!-- Dedicated Authentication Form -->
+      <form id="loginForm">
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Username or Email</label>
+          <input type="text" id="loginIdentifierInput" class="input-field" placeholder="e.g. admin or judge1 (or email)" required autocomplete="username">
         </div>
-        <div style="margin-bottom: 20px;">
+        <div style="margin-bottom: 22px;">
           <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Password</label>
-          <input type="password" id="loginPasswordInput" class="input-field" placeholder="••••••••" value="password123">
+          <input type="password" id="loginPasswordInput" class="input-field" placeholder="Enter your password" required autocomplete="current-password">
         </div>
-        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 12px; font-size: 15px;">
-          <span>🔐</span> Sign In to Dashboard
+        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 12px; font-size: 15px; font-weight: 700;">
+          <span>🔐</span> Sign In to Portal
         </button>
       </form>
 
-      <!-- Quick Demo Login Buttons -->
-      <div style="border-top: 1px solid var(--border-color); padding-top: 18px;">
-        <div style="font-size: 12px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 12px; text-align: center;">
-          ⚡ Quick 1-Click Demo Login
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-          <button type="button" class="btn quick-login-btn" data-email="admin@epoch.org">
-            <span>⚡</span> Admin (Lead)
-          </button>
-          <button type="button" class="btn quick-login-btn" data-email="sarah@vc.com">
-            <span>⚖️</span> Judge (Sarah)
-          </button>
-          <button type="button" class="btn quick-login-btn" data-email="marcus@tech.io">
-            <span>⚖️</span> Judge (Marcus)
-          </button>
-          <button type="button" class="btn quick-login-btn" data-email="guest">
-            <span>🏆</span> Public / Guest
-          </button>
-        </div>
+      <!-- Public Projector Access Link -->
+      <div style="border-top: 1px solid var(--border-color); padding-top: 18px; margin-top: 24px; text-align: center;">
+        <button type="button" id="btnPublicLeaderboardLogin" class="btn" style="width: 100%; justify-content: center; background: rgba(255, 255, 255, 0.04); font-size: 13px;">
+          <span>🏆</span> Public / Projector Display View
+        </button>
       </div>
     </div>
   </div>
@@ -142,6 +132,36 @@
           <button id="btnExportCSV" class="btn">
             <span>📥</span> Export Master CSV
           </button>
+        </div>
+      </div>
+
+      <!-- Judge Accounts & Credential Management (Admin Only) -->
+      <div class="glass-card" style="margin-bottom: 24px;">
+        <div class="card-header">
+          <div class="card-title">
+            <span>⚖️</span> Judge Accounts & Credential Management
+          </div>
+          <span class="brand-tag" style="background: rgba(99, 102, 241, 0.15); color: #a5b4fc;">4 Panel Judges Active</span>
+        </div>
+        <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;">
+          Manage the 4 dedicated judge panel accounts. As an admin, you can edit display names, usernames, emails, and set login passwords.
+        </p>
+        <div style="overflow-x: auto;">
+          <table class="teams-table">
+            <thead>
+              <tr>
+                <th>Judge Slot</th>
+                <th>Full Name</th>
+                <th>Username</th>
+                <th>Email Address</th>
+                <th>Password</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="adminJudgesTableBody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -387,6 +407,44 @@
         <button type="button" class="btn" onclick="closeAllModals()">Edit Scores</button>
         <button type="button" id="btnConfirmFinalSubmit" class="btn btn-primary">Lock & Submit</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Edit Judge Modal (Admin Only) -->
+  <div id="editJudgeModal" class="modal-overlay">
+    <div class="modal-box">
+      <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Edit Judge Credentials</h3>
+      <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+        Update the judge's full name, login username, email, and access password.
+      </p>
+      <form id="editJudgeForm">
+        <input type="hidden" id="editJudgeIdInput">
+        
+        <div style="margin-bottom: 14px;">
+          <label style="display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Judge Full Name *</label>
+          <input type="text" id="editJudgeNameInput" class="input-field" placeholder="e.g. Sarah Chen (Judge 1)" required>
+        </div>
+
+        <div style="margin-bottom: 14px;">
+          <label style="display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Username (For Login) *</label>
+          <input type="text" id="editJudgeUsernameInput" class="input-field" placeholder="e.g. judge1" required>
+        </div>
+
+        <div style="margin-bottom: 14px;">
+          <label style="display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Email Address *</label>
+          <input type="email" id="editJudgeEmailInput" class="input-field" placeholder="e.g. sarah@vc.com" required>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Password *</label>
+          <input type="text" id="editJudgePasswordInput" class="input-field" placeholder="e.g. password123" required>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn" onclick="closeAllModals()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
     </div>
   </div>
 

@@ -167,11 +167,11 @@ const REALTIME_CHANNEL_NAME = 'epoch_judging_realtime_sync_v1';
 const syncBroadcast = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(REALTIME_CHANNEL_NAME) : null;
 
 const DEFAULT_USERS = [
-    { id: '11111111-1111-1111-1111-111111111111', email: 'admin@epoch.org', full_name: 'Lead Organizer (Admin)', role: 'admin' },
-    { id: '22222222-2222-2222-2222-222222222222', email: 'sarah@vc.com', full_name: 'Sarah Chen (Judge)', role: 'judge' },
-    { id: '33333333-3333-3333-3333-333333333333', email: 'marcus@tech.io', full_name: 'Marcus Vance (Judge)', role: 'judge' },
-    { id: '44444444-4444-4444-4444-444444444444', email: 'priya@ai.dev', full_name: 'Priya Sharma (Judge)', role: 'judge' },
-    { id: '55555555-5555-5555-5555-555555555555', email: 'alex@design.co', full_name: 'Alex Rivera (Judge)', role: 'judge' },
+    { id: '11111111-1111-1111-1111-111111111111', username: 'admin', email: 'admin@epoch.org', password: 'password123', full_name: 'Lead Organizer (Admin)', role: 'admin' },
+    { id: '22222222-2222-2222-2222-222222222222', username: 'judge1', email: 'sarah@vc.com', password: 'password123', full_name: 'Sarah Chen (Judge 1)', role: 'judge' },
+    { id: '33333333-3333-3333-3333-333333333333', username: 'judge2', email: 'marcus@tech.io', password: 'password123', full_name: 'Marcus Vance (Judge 2)', role: 'judge' },
+    { id: '44444444-4444-4444-4444-444444444444', username: 'judge3', email: 'priya@ai.dev', password: 'password123', full_name: 'Priya Sharma (Judge 3)', role: 'judge' },
+    { id: '55555555-5555-5555-5555-555555555555', username: 'judge4', email: 'alex@design.co', password: 'password123', full_name: 'Alex Rivera (Judge 4)', role: 'judge' },
 ];
 
 const DEFAULT_TEAMS = [
@@ -385,9 +385,8 @@ class EpochDatabaseService {
     }
 
     initStorage() {
-        // Ensure default users with current UUIDs and emails are always up to date
         const storedUsers = localStorage.getItem(STORAGE_KEYS.USERS);
-        if (!storedUsers || !storedUsers.includes('22222222-2222-2222-2222-222222222222')) {
+        if (!storedUsers || !storedUsers.includes('password123') || !storedUsers.includes('judge1')) {
             localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(DEFAULT_USERS));
         }
 
@@ -449,13 +448,43 @@ class EpochDatabaseService {
         }
     }
 
+    authenticate(identifier, password) {
+        const cleanId = String(identifier || '').trim().toLowerCase();
+        const cleanPass = String(password || '').trim();
+
+        if (!cleanId) {
+            throw new Error('Please enter your username or email address.');
+        }
+        if (!cleanPass) {
+            throw new Error('Please enter your password.');
+        }
+
+        const users = this.getUsers();
+        const user = users.find(u => 
+            (u.email && u.email.toLowerCase() === cleanId) || 
+            (u.username && u.username.toLowerCase() === cleanId)
+        );
+
+        if (!user) {
+            throw new Error('Account not found. Please verify your username/email.');
+        }
+
+        if (user.password && user.password !== cleanPass) {
+            throw new Error('Incorrect password. Please try again.');
+        }
+
+        localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+        this.broadcast('AUTH_CHANGED', { user });
+        return user;
+    }
+
     loginAs(userOrId) {
         let user;
         if (typeof userOrId === 'object' && userOrId !== null) {
             user = userOrId;
         } else {
             const users = this.getUsers();
-            user = users.find(u => u.id === userOrId || u.email.toLowerCase() === String(userOrId).toLowerCase());
+            user = users.find(u => u.id === userOrId || (u.email && u.email.toLowerCase() === String(userOrId).toLowerCase()) || (u.username && u.username.toLowerCase() === String(userOrId).toLowerCase()));
         }
 
         if (!user) {
@@ -490,6 +519,55 @@ class EpochDatabaseService {
 
     getJudges() {
         return this.getUsers().filter(u => u.role === 'judge');
+    }
+
+    updateJudge(judgeId, updatedFields, user = this.getCurrentUser()) {
+        this.verifyPermission(user, ['admin'], 'Update Judge Credentials');
+        
+        const users = this.getUsers();
+        const index = users.findIndex(u => u.id === judgeId);
+        if (index === -1) {
+            throw new Error(`Judge with ID ${judgeId} not found.`);
+        }
+
+        // Validate uniqueness of username and email
+        const targetUsername = (updatedFields.username || '').trim().toLowerCase();
+        const targetEmail = (updatedFields.email || '').trim().toLowerCase();
+
+        if (targetUsername) {
+            const conflictUser = users.find(u => u.id !== judgeId && u.username && u.username.toLowerCase() === targetUsername);
+            if (conflictUser) {
+                throw new Error(`Username "${targetUsername}" is already taken by another account.`);
+            }
+        }
+
+        if (targetEmail) {
+            const conflictEmail = users.find(u => u.id !== judgeId && u.email && u.email.toLowerCase() === targetEmail);
+            if (conflictEmail) {
+                throw new Error(`Email "${targetEmail}" is already taken by another account.`);
+            }
+        }
+
+        const oldJudge = users[index];
+        const updatedJudge = {
+            ...oldJudge,
+            full_name: (updatedFields.full_name || oldJudge.full_name).trim(),
+            username: targetUsername || oldJudge.username,
+            email: targetEmail || oldJudge.email,
+            password: updatedFields.password ? updatedFields.password.trim() : oldJudge.password
+        };
+
+        users[index] = updatedJudge;
+        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+
+        // If the updated judge is currently logged in locally, update their current session
+        const currentUser = this.getCurrentUser();
+        if (currentUser && currentUser.id === judgeId) {
+            localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedJudge));
+        }
+
+        this.broadcast('USERS_UPDATED', { users, updatedJudge });
+        return updatedJudge;
     }
 
     getTeams() {
@@ -994,22 +1072,27 @@ function showAppShellForUser(user) {
 function initLoginUI() {
     const form = document.getElementById('loginForm');
     const logoutBtn = document.getElementById('btnLogout');
+    const guestLink = document.getElementById('btnPublicLeaderboardLogin');
 
     if (form) {
         form.addEventListener('submit', (e) => {
             e.preventDefault();
-            const email = document.getElementById('loginEmailInput').value.trim().toLowerCase();
-            handleUserLoginByEmail(email);
+            const identifier = document.getElementById('loginIdentifierInput').value.trim();
+            const password = document.getElementById('loginPasswordInput').value;
+            handleUserLogin(identifier, password);
         });
     }
 
-    // Quick 1-Click Login Buttons
-    document.querySelectorAll('.quick-login-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const email = btn.dataset.email;
-            handleUserLoginByEmail(email);
+    if (guestLink) {
+        guestLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            const guestUser = { id: 'guest', full_name: 'Guest / Projector Viewer', role: 'public', email: 'guest@epoch.org' };
+            localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(guestUser));
+            dbService.broadcast('AUTH_CHANGED', { user: guestUser });
+            showToast('Viewing Public Leaderboard on Projector View', 'info');
+            showAppShellForUser(guestUser);
         });
-    });
+    }
 
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
@@ -1020,49 +1103,19 @@ function initLoginUI() {
     }
 }
 
-function handleUserLoginByEmail(email) {
-    if (email === 'guest') {
-        const guestUser = { id: 'guest', full_name: 'Guest / Public Viewer', role: 'public', email: 'guest@epoch.org' };
-        localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(guestUser));
-        dbService.broadcast('AUTH_CHANGED', { user: guestUser });
-        showToast('Viewing as Public / Guest on Live Leaderboard', 'info');
-        showAppShellForUser(guestUser);
-        return;
-    }
-
-    const cleanEmail = String(email || '').trim().toLowerCase();
-
-    // Match known demo users by email or substring
-    let found = DEFAULT_USERS.find(u => 
-        u.email.toLowerCase() === cleanEmail || 
-        cleanEmail.includes(u.email.split('@')[0]) ||
-        u.email.toLowerCase().includes(cleanEmail)
-    );
-
-    if (!found) {
-        if (cleanEmail.includes('admin') || cleanEmail.includes('organizer')) {
-            found = DEFAULT_USERS[0];
-        } else if (cleanEmail.includes('sarah')) {
-            found = DEFAULT_USERS[1];
-        } else if (cleanEmail.includes('marcus')) {
-            found = DEFAULT_USERS[2];
-        } else if (cleanEmail.includes('priya')) {
-            found = DEFAULT_USERS[3];
-        } else if (cleanEmail.includes('alex')) {
-            found = DEFAULT_USERS[4];
-        } else {
-            found = {
-                id: crypto.randomUUID ? crypto.randomUUID() : 'judge_' + Date.now(),
-                email: cleanEmail,
-                full_name: cleanEmail.split('@')[0],
-                role: 'judge'
-            };
+function handleUserLogin(identifier, password) {
+    try {
+        const loggedIn = dbService.authenticate(identifier, password);
+        showToast(`Welcome back, ${loggedIn.full_name}!`, 'success');
+        showAppShellForUser(loggedIn);
+    } catch (err) {
+        showToast(err.message, 'error');
+        const errEl = document.getElementById('loginErrorMessage');
+        if (errEl) {
+            errEl.textContent = err.message;
+            errEl.style.display = 'block';
         }
     }
-
-    const loggedIn = dbService.loginAs(found);
-    showToast(`Welcome, ${loggedIn.full_name}!`, 'success');
-    showAppShellForUser(loggedIn);
 }
 
 function renderRoleNavigation(user) {
@@ -1248,6 +1301,28 @@ function initAdminActions() {
             showToast(err.message, 'error');
         }
     });
+
+    // Edit Judge Credentials Form
+    const editJudgeForm = document.getElementById('editJudgeForm');
+    if (editJudgeForm) {
+        editJudgeForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const judgeId = document.getElementById('editJudgeIdInput').value;
+            const full_name = document.getElementById('editJudgeNameInput').value;
+            const username = document.getElementById('editJudgeUsernameInput').value;
+            const email = document.getElementById('editJudgeEmailInput').value;
+            const password = document.getElementById('editJudgePasswordInput').value;
+
+            try {
+                const updated = dbService.updateJudge(judgeId, { full_name, username, email, password });
+                showToast(`✓ Credentials updated for ${updated.full_name}!`, 'success');
+                closeAllModals();
+                renderAdminDashboard();
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        });
+    }
 }
 
 function renderAdminDashboard() {
@@ -1255,6 +1330,7 @@ function renderAdminDashboard() {
     const teams = dbService.getTeams();
     const allScores = dbService.getScores();
     const progress = dbService.getActivePitchProgress();
+    const judges = dbService.getJudges();
 
     const activeTeam = teams.find(t => t.id === session.active_team_id);
 
@@ -1291,6 +1367,31 @@ function renderAdminDashboard() {
         trackEl.style.display = 'none';
         markDoneBtn.style.display = 'none';
         progressCont.style.display = 'none';
+    }
+
+    // Render Judge Accounts Table
+    const judgeTableBody = document.getElementById('adminJudgesTableBody');
+    if (judgeTableBody) {
+        judgeTableBody.innerHTML = judges.map((j, i) => `
+            <tr>
+                <td style="font-weight: 700; color: var(--text-muted);">Judge ${i + 1}</td>
+                <td>
+                    <div style="font-weight: 700;">${escapeHtml(j.full_name)}</div>
+                </td>
+                <td>
+                    <code style="background: rgba(99,102,241,0.15); color: #818cf8; padding: 3px 8px; border-radius: 4px; font-weight: 600;">${escapeHtml(j.username || 'judge' + (i+1))}</code>
+                </td>
+                <td style="color: var(--text-secondary); font-size: 13px;">${escapeHtml(j.email)}</td>
+                <td>
+                    <span style="font-family: monospace; letter-spacing: 2px; color: var(--text-muted); font-size: 14px;">••••••••</span>
+                </td>
+                <td>
+                    <button class="btn" style="padding: 6px 14px; font-size: 12px;" onclick="window.openEditJudgeModal('${j.id}')">
+                        <span>✏️</span> Edit Credentials
+                    </button>
+                </td>
+            </tr>
+        `).join('');
     }
 
     const tbody = document.getElementById('teamsTableBody');
@@ -1342,6 +1443,20 @@ function renderAdminDashboard() {
         `;
     }).join('');
 }
+
+window.openEditJudgeModal = function(judgeId) {
+    const judges = dbService.getJudges();
+    const judge = judges.find(j => j.id === judgeId);
+    if (!judge) return;
+
+    document.getElementById('editJudgeIdInput').value = judge.id;
+    document.getElementById('editJudgeNameInput').value = judge.full_name;
+    document.getElementById('editJudgeUsernameInput').value = judge.username || '';
+    document.getElementById('editJudgeEmailInput').value = judge.email;
+    document.getElementById('editJudgePasswordInput').value = judge.password || '';
+
+    openModal('editJudgeModal');
+};
 
 window.setActiveTeam = function(teamId) {
     try {

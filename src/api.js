@@ -18,11 +18,11 @@ const syncBroadcast = typeof BroadcastChannel !== 'undefined' ? new BroadcastCha
 
 // Initial Pre-loaded Seed Data for Instant Hackathon Demonstration
 const DEFAULT_USERS = [
-    { id: 'usr_admin_1', email: 'admin@epoch.org', full_name: 'Lead Organizer (Admin)', role: 'admin' },
-    { id: 'usr_judge_1', email: 'judge.sarah@vc.com', full_name: 'Sarah Chen (Judge)', role: 'judge' },
-    { id: 'usr_judge_2', email: 'judge.marcus@tech.io', full_name: 'Marcus Vance (Judge)', role: 'judge' },
-    { id: 'usr_judge_3', email: 'judge.priya@ai.dev', full_name: 'Priya Sharma (Judge)', role: 'judge' },
-    { id: 'usr_judge_4', email: 'judge.alex@design.co', full_name: 'Alex Rivera (Judge)', role: 'judge' },
+    { id: '11111111-1111-1111-1111-111111111111', username: 'admin', email: 'admin@epoch.org', password: 'password123', full_name: 'Lead Organizer (Admin)', role: 'admin' },
+    { id: '22222222-2222-2222-2222-222222222222', username: 'judge1', email: 'sarah@vc.com', password: 'password123', full_name: 'Sarah Chen (Judge 1)', role: 'judge' },
+    { id: '33333333-3333-3333-3333-333333333333', username: 'judge2', email: 'marcus@tech.io', password: 'password123', full_name: 'Marcus Vance (Judge 2)', role: 'judge' },
+    { id: '44444444-4444-4444-4444-444444444444', username: 'judge3', email: 'priya@ai.dev', password: 'password123', full_name: 'Priya Sharma (Judge 3)', role: 'judge' },
+    { id: '55555555-5555-5555-5555-555555555555', username: 'judge4', email: 'alex@design.co', password: 'password123', full_name: 'Alex Rivera (Judge 4)', role: 'judge' },
 ];
 
 const DEFAULT_TEAMS = [
@@ -121,9 +121,39 @@ class EpochDatabaseService {
         }
     }
 
+    authenticate(identifier, password) {
+        const cleanId = String(identifier || '').trim().toLowerCase();
+        const cleanPass = String(password || '').trim();
+
+        if (!cleanId) {
+            throw new Error('Please enter your username or email address.');
+        }
+        if (!cleanPass) {
+            throw new Error('Please enter your password.');
+        }
+
+        const users = this.getUsers();
+        const user = users.find(u => 
+            (u.email && u.email.toLowerCase() === cleanId) || 
+            (u.username && u.username.toLowerCase() === cleanId)
+        );
+
+        if (!user) {
+            throw new Error('Account not found. Please verify your username/email.');
+        }
+
+        if (user.password && user.password !== cleanPass) {
+            throw new Error('Incorrect password. Please try again.');
+        }
+
+        localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+        this.broadcast('AUTH_CHANGED', { user });
+        return user;
+    }
+
     loginAs(userId) {
         const users = this.getUsers();
-        const user = users.find(u => u.id === userId);
+        const user = users.find(u => u.id === userId || (u.email && u.email.toLowerCase() === String(userId).toLowerCase()) || (u.username && u.username.toLowerCase() === String(userId).toLowerCase()));
         if (!user) {
             throw new Error(`User ID ${userId} not found.`);
         }
@@ -160,6 +190,53 @@ class EpochDatabaseService {
 
     getJudges() {
         return this.getUsers().filter(u => u.role === 'judge');
+    }
+
+    updateJudge(judgeId, updatedFields, user = this.getCurrentUser()) {
+        this.verifyPermission(user, ['admin'], 'Update Judge Credentials');
+        
+        const users = this.getUsers();
+        const index = users.findIndex(u => u.id === judgeId);
+        if (index === -1) {
+            throw new Error(`Judge with ID ${judgeId} not found.`);
+        }
+
+        const targetUsername = (updatedFields.username || '').trim().toLowerCase();
+        const targetEmail = (updatedFields.email || '').trim().toLowerCase();
+
+        if (targetUsername) {
+            const conflictUser = users.find(u => u.id !== judgeId && u.username && u.username.toLowerCase() === targetUsername);
+            if (conflictUser) {
+                throw new Error(`Username "${targetUsername}" is already taken by another account.`);
+            }
+        }
+
+        if (targetEmail) {
+            const conflictEmail = users.find(u => u.id !== judgeId && u.email && u.email.toLowerCase() === targetEmail);
+            if (conflictEmail) {
+                throw new Error(`Email "${targetEmail}" is already taken by another account.`);
+            }
+        }
+
+        const oldJudge = users[index];
+        const updatedJudge = {
+            ...oldJudge,
+            full_name: (updatedFields.full_name || oldJudge.full_name).trim(),
+            username: targetUsername || oldJudge.username,
+            email: targetEmail || oldJudge.email,
+            password: updatedFields.password ? updatedFields.password.trim() : oldJudge.password
+        };
+
+        users[index] = updatedJudge;
+        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+
+        const currentUser = this.getCurrentUser();
+        if (currentUser && currentUser.id === judgeId) {
+            localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedJudge));
+        }
+
+        this.broadcast('USERS_UPDATED', { users, updatedJudge });
+        return updatedJudge;
     }
 
     // =========================================================================
