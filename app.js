@@ -847,6 +847,75 @@ class EpochDatabaseService {
         return { success: true, removedCount: allScores.length - filtered.length };
     }
 
+    // =========================================================================
+    // SCORE OVERRIDE (Admin Only) — Person 2 addition
+    // =========================================================================
+
+    /**
+     * Admin correction of a single judge's already-submitted score.
+     * Recomputes the weighted score and stamps an audit trail so the
+     * correction is traceable without exposing it to other judges.
+     */
+    overrideScore(scoreId, updatedFields, user = this.getCurrentUser()) {
+        this.verifyPermission(user, ['admin'], 'Override Judge Score');
+
+        const allScores = JSON.parse(localStorage.getItem(STORAGE_KEYS.SCORES) || '[]');
+        const index = allScores.findIndex(s => s.id === scoreId);
+        if (index === -1) {
+            throw new Error(`Score record ${scoreId} not found.`);
+        }
+
+        const criteriaKeys = ['tech_score', 'impact_score', 'problem_score', 'innovation_score', 'presentation_score', 'ux_score'];
+        const merged = { ...allScores[index] };
+
+        criteriaKeys.forEach(key => {
+            if (updatedFields[key] !== undefined && updatedFields[key] !== null && updatedFields[key] !== '') {
+                const val = Number(updatedFields[key]);
+                if (isNaN(val) || val < 1 || val > 10) {
+                    throw new Error(`Invalid score for ${key}: Must be between 1.0 and 10.0.`);
+                }
+                merged[key] = val;
+            }
+        });
+
+        merged.weighted_score = calculateJudgeWeightedScore(merged);
+        merged.overridden = true;
+        merged.overridden_by = user.id;
+        merged.overridden_at = new Date().toISOString();
+
+        allScores[index] = merged;
+        localStorage.setItem(STORAGE_KEYS.SCORES, JSON.stringify(allScores));
+        this.broadcast('SCORE_OVERRIDDEN', { score: merged, team_id: merged.team_id });
+
+        // Cloud sync to Supabase, mirroring the pattern used by submitScore()
+        if (this.isCloudConnected) {
+            fetch(`${this.supabaseUrl}/rest/v1/scores?id=eq.${scoreId}`, {
+                method: 'PATCH',
+                headers: this.getSupabaseHeaders(),
+                body: JSON.stringify({
+                    tech_score: merged.tech_score,
+                    impact_score: merged.impact_score,
+                    problem_score: merged.problem_score,
+                    innovation_score: merged.innovation_score,
+                    presentation_score: merged.presentation_score,
+                    ux_score: merged.ux_score,
+                    weighted_score: merged.weighted_score,
+                    overridden: true,
+                    overridden_by: merged.overridden_by,
+                    overridden_at: merged.overridden_at
+                })
+            }).then(async res => {
+                if (res.ok) {
+                    console.log('[Supabase Cloud] Score override synced to PostgreSQL!');
+                } else {
+                    console.warn('[Supabase Score Override Note]:', await res.text());
+                }
+            }).catch(err => console.error('[Supabase Score Override Err]:', err));
+        }
+
+        return merged;
+    }
+
     getActivePitchProgress() {
         const session = this.getActiveSession();
         if (!session.active_team_id || session.status !== 'pitching') {
@@ -1230,6 +1299,8 @@ function handleRealtimeEvent(event) {
         showToast('Pitch session completed. Leaderboard refreshed.', 'info');
     } else if (event.type === 'SCORE_SUBMITTED') {
         showToast(`Evaluation recorded for ${event.payload?.score?.judge_name || 'Judge'}`, 'success');
+    } else if (event.type === 'SCORE_OVERRIDDEN') {
+        showToast(`An admin corrected a score for ${event.payload?.score?.judge_name || 'a judge'}.`, 'info');
     }
 }
 
@@ -1239,6 +1310,12 @@ function refreshAllViews() {
     renderLeaderboardView();
     renderFeedbackView();
     updateSyncIndicator();
+
+    // Keep the score-detail modal live if it's open when a real-time event arrives
+    const scoreModal = document.getElementById('scoreDetailModal');
+    if (scoreModal && scoreModal.classList.contains('open') && scoreModal.dataset.teamId) {
+        renderScoreDetailModal(scoreModal.dataset.teamId);
+    }
 }
 
 function updateSyncIndicator() {
@@ -1443,6 +1520,9 @@ function renderAdminDashboard() {
                                 Set Active
                             </button>
                         `}
+                        <button class="btn" style="padding: 6px 12px; font-size: 12px;" onclick="window.viewTeamScores('${team.id}')" title="View & Override Scores">
+                            Scores
+                        </button>
                         <button class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;" onclick="window.resetTeamScores('${team.id}')" title="Reset Scores">
                             Reset
                         </button>
@@ -1484,6 +1564,112 @@ window.resetTeamScores = function(teamId) {
         } catch (e) {
             showToast(e.message, 'error');
         }
+    }
+};
+
+// =========================================================================
+// SCORE DETAIL / OVERRIDE MODAL (Admin Only) — Person 2 addition
+// =========================================================================
+
+const SCORE_OVERRIDE_CRITERIA = [
+    { key: 'tech_score', label: 'Tech' },
+    { key: 'impact_score', label: 'Impact' },
+    { key: 'problem_score', label: 'Problem' },
+    { key: 'innovation_score', label: 'Innov.' },
+    { key: 'presentation_score', label: 'Present.' },
+    { key: 'ux_score', label: 'UX' }
+];
+
+window.viewTeamScores = function(teamId) {
+    renderScoreDetailModal(teamId);
+    openModal('scoreDetailModal');
+};
+
+function renderScoreDetailModal(teamId) {
+    const modal = document.getElementById('scoreDetailModal');
+    if (!modal) return;
+    modal.dataset.teamId = teamId;
+
+    const team = dbService.getTeams().find(t => t.id === teamId);
+    const nameEl = document.getElementById('scoreDetailTeamName');
+    if (nameEl) nameEl.textContent = team ? team.name : 'Unknown Team';
+
+    const teamScores = dbService.getScores().filter(s => s.team_id === teamId);
+    const tbody = document.getElementById('scoreDetailTableBody');
+    const tfoot = document.getElementById('scoreDetailTableFoot');
+    if (!tbody || !tfoot) return;
+
+    if (teamScores.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 26px;">No scores submitted for this team yet.</td></tr>`;
+        tfoot.innerHTML = '';
+        return;
+    }
+
+    tbody.innerHTML = teamScores.map(s => `
+        <tr data-score-id="${s.id}">
+            <td style="font-weight: 700;">
+                ${escapeHtml(s.judge_name || s.judge_id)}
+                ${s.overridden ? `<div style="font-size: 10.5px; color: var(--gold-400); font-weight: 600;">EDITED BY ADMIN</div>` : ''}
+            </td>
+            ${SCORE_OVERRIDE_CRITERIA.map(c => `
+                <td>
+                    <input type="number" min="1" max="10" step="0.1" class="score-override-input"
+                        id="scoreOverrideInput_${s.id}_${c.key}" value="${s[c.key]}">
+                </td>
+            `).join('')}
+            <td style="font-weight: 800; color: var(--gold-300); font-family: var(--font-mono);" id="scoreOverrideFinal_${s.id}">
+                ${s.weighted_score}
+            </td>
+            <td>
+                <button class="btn btn-primary" style="padding: 6px 12px; font-size: 11.5px;" onclick="window.saveScoreOverride('${s.id}')">
+                    Save
+                </button>
+            </td>
+        </tr>
+    `).join('');
+
+    const avg = calculateTeamCriteriaAverages(teamScores);
+    tfoot.innerHTML = `
+        <tr style="background: var(--bg-surface-elevated); font-weight: 700;">
+            <td>Panel Average</td>
+            ${SCORE_OVERRIDE_CRITERIA.map(c => `<td>${avg[c.key]}</td>`).join('')}
+            <td style="color: var(--gold-300); font-family: var(--font-mono);">${avg.overallScore}</td>
+            <td></td>
+        </tr>
+    `;
+}
+
+window.saveScoreOverride = function(scoreId) {
+    const updatedFields = {};
+    SCORE_OVERRIDE_CRITERIA.forEach(c => {
+        const input = document.getElementById(`scoreOverrideInput_${scoreId}_${c.key}`);
+        if (input) updatedFields[c.key] = input.value;
+    });
+
+    try {
+        const updated = dbService.overrideScore(scoreId, updatedFields);
+        showToast(`Score corrected for ${updated.judge_name || 'judge'}.`, 'success');
+        const modal = document.getElementById('scoreDetailModal');
+        if (modal && modal.dataset.teamId) renderScoreDetailModal(modal.dataset.teamId);
+        renderAdminDashboard();
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
+};
+
+window.resetScoresFromModal = function() {
+    const modal = document.getElementById('scoreDetailModal');
+    const teamId = modal?.dataset.teamId;
+    if (!teamId) return;
+    if (!confirm('Are you sure you want to reset all judge scores for this team?')) return;
+
+    try {
+        dbService.resetTeamScores(teamId);
+        showToast('Scores reset successfully for re-pitch.', 'success');
+        renderScoreDetailModal(teamId);
+        renderAdminDashboard();
+    } catch (e) {
+        showToast(e.message, 'error');
     }
 };
 

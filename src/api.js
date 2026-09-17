@@ -451,6 +451,50 @@ class EpochDatabaseService {
     }
 
     // =========================================================================
+    // SCORE OVERRIDE (Admin Only) — Person 2 addition
+    // =========================================================================
+
+    /**
+     * Admin correction of a single judge's already-submitted score.
+     * Recomputes the weighted score and stamps an audit trail so the
+     * correction is traceable without exposing it to other judges.
+     * Mirrors the same method in app.js — keep both in sync until
+     * src/api.js is wired into index.html as the live module.
+     */
+    overrideScore(scoreId, updatedFields, user = this.getCurrentUser()) {
+        this.verifyPermission(user, ['admin'], 'Override Judge Score');
+
+        const allScores = JSON.parse(localStorage.getItem(STORAGE_KEYS.SCORES) || '[]');
+        const index = allScores.findIndex(s => s.id === scoreId);
+        if (index === -1) {
+            throw new Error(`Score record ${scoreId} not found.`);
+        }
+
+        const criteriaKeys = ['tech_score', 'impact_score', 'problem_score', 'innovation_score', 'presentation_score', 'ux_score'];
+        const merged = { ...allScores[index] };
+
+        criteriaKeys.forEach(key => {
+            if (updatedFields[key] !== undefined && updatedFields[key] !== null && updatedFields[key] !== '') {
+                const val = Number(updatedFields[key]);
+                if (isNaN(val) || val < 1 || val > 10) {
+                    throw new Error(`Invalid score for ${key}: Must be between 1.0 and 10.0.`);
+                }
+                merged[key] = val;
+            }
+        });
+
+        merged.weighted_score = calculateJudgeWeightedScore(merged);
+        merged.overridden = true;
+        merged.overridden_by = user.id;
+        merged.overridden_at = new Date().toISOString();
+
+        allScores[index] = merged;
+        localStorage.setItem(STORAGE_KEYS.SCORES, JSON.stringify(allScores));
+        this.broadcast('SCORE_OVERRIDDEN', { score: merged, team_id: merged.team_id });
+        return merged;
+    }
+
+    // =========================================================================
     // PROGRESS & AGGREGATION SERVICES
     // =========================================================================
 
