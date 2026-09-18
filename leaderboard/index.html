@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#060907" />
+  <meta name="description" content="Epoch 1.0 — Live Hackathon Leaderboard, Criteria-wise Score Breakdown & Reports by CodeAI KJSIT." />
+  <title>Epoch 1.0 — Live Leaderboard & Reports | CodeAI KJSIT</title>
+  
+  <!-- Typography matching CodeAI & Epoch 1.0 references -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  
+  <link rel="stylesheet" href="./src/styles/theme.css" />
+  <link rel="stylesheet" href="./src/styles/components.css" />
+</head>
+<body class="site-body">
+  <div class="ambient-grid" aria-hidden="true"></div>
+
+  <div id="app" class="app-shell">
+    
+    <!-- Top Bar / Club Identity -->
+    <div class="club-banner">
+      <div class="banner-left">
+        <a href="https://codeaikjsit.github.io/clubwebsite/" target="_blank" rel="noopener" class="club-link">
+          <span class="club-logo-dot"></span>
+          <span>CodeAI Club</span>
+        </a>
+        <span class="banner-sep">/</span>
+        <span class="banner-dept">Department of Computer Engineering, K. J. Somaiya Institute of Technology</span>
+      </div>
+      <div class="banner-right">
+        <span class="role-tag">Person 4: Leaderboard &bull; Reports &bull; Export</span>
+      </div>
+    </div>
+
+    <!-- Main Header -->
+    <header class="app-header">
+      <div class="header-main">
+        <div class="hackathon-tag">
+          <span class="live-indicator"></span>
+          <span>EPOCH 1.0 &bull; LIVE EVALUATION</span>
+        </div>
+        <h1 class="page-title">Live Leaderboard <span class="title-amp">&amp;</span> Reports</h1>
+        <p class="page-subtitle">Real-time score aggregation across multi-judge evaluations. All scores evaluated on a strict <strong>1 to 10 scale</strong>.</p>
+      </div>
+
+      <div class="header-telemetry">
+        <!-- Telemetry Stats -->
+        <div class="stats-card">
+          <div class="stat-cell">
+            <span class="stat-lbl">TEAMS EVALUATED</span>
+            <span id="statEvaluated" class="stat-num">0 / 0</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-cell">
+            <span class="stat-lbl">JUDGE SUBMISSIONS</span>
+            <span id="statSubmissions" class="stat-num">0</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-cell">
+            <span class="stat-lbl">LAST UPDATED</span>
+            <span id="statSyncTime" class="stat-num font-mono">--:--:--</span>
+          </div>
+        </div>
+
+        <!-- Export Actions -->
+        <div class="export-actions">
+          <button id="btnExportCsv" class="btn btn-secondary" title="Export complete dataset to CSV for Admin">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Export CSV</span>
+          </button>
+          <button id="btnPrintDossier" class="btn btn-primary" title="Print or save PDF evaluation report">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            <span>Print Report</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Top 3 Podium Winners Showcase -->
+    <section class="podium-container" id="podiumContainer" aria-label="Top 3 Standings">
+      <!-- Rendered by Podium.js -->
+    </section>
+
+    <!-- Search & Filter Controls -->
+    <section class="filter-bar">
+      <div class="search-wrap">
+        <svg class="search-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="teamSearchInput" placeholder="Search team, project, or builder name..." aria-label="Search teams" />
+        <button id="btnClearSearch" class="clear-btn" title="Clear search">&times;</button>
+      </div>
+
+      <div class="filter-cluster">
+        <span class="filter-title">TRACK:</span>
+        <div class="filter-tags" id="trackFilters" role="radiogroup">
+          <button class="tag-btn active" data-track="ALL">All Tracks</button>
+          <button class="tag-btn" data-track="AI / ML">AI / ML</button>
+          <button class="tag-btn" data-track="WEB3 & FINTECH">Web3 &amp; FinTech</button>
+          <button class="tag-btn" data-track="HEALTHCARE & SOCIAL">Health &amp; Social</button>
+          <button class="tag-btn" data-track="OPEN INNOVATION">Open Innovation</button>
+        </div>
+      </div>
+
+      <div class="sort-cluster">
+        <span class="filter-title">SORT:</span>
+        <select id="sortBySelect" class="sort-select" aria-label="Sort by score or criteria">
+          <option value="weightedScore">Overall Score (out of 10)</option>
+          <option value="c1">Innovation (20%)</option>
+          <option value="c2">Technical Execution (25%)</option>
+          <option value="c3">UI/UX Polish (15%)</option>
+          <option value="c4">Feasibility &amp; Impact (15%)</option>
+          <option value="c5">Pitch &amp; Presentation (15%)</option>
+          <option value="c6">Code Quality (10%)</option>
+          <option value="judgeCount">Judge Count</option>
+        </select>
+      </div>
+    </section>
+
+    <!-- Leaderboard Table -->
+    <main class="table-section">
+      <div class="table-card">
+        <div class="table-card-top">
+          <div class="table-heading-wrap">
+            <h2 class="table-heading">Live Rankings &bull; Aggregated Standings</h2>
+            <span class="table-count" id="tableFilteredCount">Showing 0 teams</span>
+          </div>
+          <div class="rubric-note">
+            <span>Rubric: 6 Weighted Criteria &bull; Final Score = &Sigma;(Avg &times; Weight) out of 10.0</span>
+          </div>
+        </div>
+
+        <div class="table-scroll">
+          <table class="leaderboard-table" id="leaderboardTable">
+            <thead>
+              <tr>
+                <th class="col-rank">RANK</th>
+                <th class="col-team">TEAM &amp; PROJECT</th>
+                <th class="col-track">TRACK</th>
+                <th class="col-eval">EVALUATIONS</th>
+                <th class="col-criteria" title="Criteria: C1(20%), C2(25%), C3(15%), C4(15%), C5(15%), C6(10%)">
+                  CRITERIA BREAKDOWN (1–10)
+                </th>
+                <th class="col-consensus">CONSENSUS</th>
+                <th class="col-score">SCORE / 10</th>
+                <th class="col-actions">ACTION</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboardTableBody">
+              <!-- Rendered via LeaderboardTable.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <strong>EPOCH 1.0</strong> &bull; Organized by <strong>CodeAI Club</strong>, Department of Computer Engineering, KJSIT Mumbai.
+        </div>
+        <div class="footer-role">
+          <span>Person 4: Real-time Leaderboard &bull; Multi-Judge Aggregator &bull; Feedback Reports &bull; CSV &amp; PDF Export</span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Team Feedback & Drilldown Report Modal -->
+  <div id="teamReportModal" class="modal-overlay" aria-hidden="true" role="dialog" aria-labelledby="modalTeamName">
+    <div class="modal-card">
+      <div class="modal-top">
+        <div class="modal-titles">
+          <div class="modal-pill" id="modalTrackBadge">TRACK: AI / ML</div>
+          <h2 id="modalTeamName" class="modal-team-name">Team Name</h2>
+          <p id="modalProjectTitle" class="modal-project-title">Project Title</p>
+        </div>
+        <div class="modal-actions">
+          <button id="btnModalPrint" class="btn btn-secondary btn-sm" title="Print this individual team scorecard">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Print Scorecard
+          </button>
+          <button id="btnCloseModal" class="close-x-btn" aria-label="Close modal">&times;</button>
+        </div>
+      </div>
+
+      <div class="modal-content-area" id="modalReportContent">
+        <!-- Rendered via TeamReportModal.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-stack" aria-live="polite"></div>
+
+  <!-- Printable Area -->
+  <div id="printDossierContainer" class="print-container"></div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

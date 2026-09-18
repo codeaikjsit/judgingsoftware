@@ -1,6 +1,6 @@
 # Dependencies & Node
 node_modules/
-package-lock.json
+dist/
 
 # Environment & Credentials
 .env
