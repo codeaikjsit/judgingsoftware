@@ -472,6 +472,46 @@
     </div>
   </div>
 
+  <!-- Score Detail / Override Modal (Admin Only) — Person 2 addition -->
+  <div id="scoreDetailModal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 780px;">
+      <h3 style="font-size: 19px; font-weight: 700; margin-bottom: 4px; letter-spacing: 0.5px;">
+        Score Details — <span id="scoreDetailTeamName">Team</span>
+      </h3>
+      <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+        View each judge's raw scores. Correct a single value and save, or reset the whole panel for a re-pitch.
+        Judge identities stay visible to admins only — this never appears on the public leaderboard or feedback report.
+      </p>
+      <div style="overflow-x: auto;">
+        <table class="teams-table">
+          <thead>
+            <tr>
+              <th>Judge</th>
+              <th>Tech</th>
+              <th>Impact</th>
+              <th>Problem</th>
+              <th>Innov.</th>
+              <th>Present.</th>
+              <th>UX</th>
+              <th>Final</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="scoreDetailTableBody">
+            <!-- Rendered via JS -->
+          </tbody>
+          <tfoot id="scoreDetailTableFoot"></tfoot>
+        </table>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
+        <button type="button" class="btn btn-danger" onclick="window.resetScoresFromModal()">
+          Reset All Scores For This Team
+        </button>
+        <button type="button" class="btn" onclick="closeAllModals()">Close</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Cloud Database Diagnostics Modal -->
   <div id="cloudDiagModal" class="modal-overlay">
     <div class="modal-box" style="max-width: 600px;">
