@@ -160,10 +160,13 @@
           <div class="card-title">
             Judge Registry & Authentication Node
           </div>
-          <span class="brand-tag">4 Panel Judges Configured</span>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <span class="brand-tag">Panel Judges Configured</span>
+            <button id="btnOpenAddJudgeModal" class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">+ Add Judge</button>
+          </div>
         </div>
         <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;">
-          Manage the 4 dedicated judge panel accounts. As an admin, you can edit display names, usernames, emails, and set login passkeys.
+          Manage the dedicated judge panel accounts. As an admin, you can add/remove judges, edit display names, usernames, emails, and set login passkeys.
         </p>
         <div style="overflow-x: auto;">
           <table class="teams-table">
@@ -404,12 +407,54 @@
       <h3 style="font-size: 19px; font-weight: 700; margin-bottom: 16px; letter-spacing: 0.5px;">Batch Import Teams</h3>
       <form id="bulkImportForm">
         <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
-          Enter 1 team per line (Format: <code>Team Name, Track</code>):
+          Option 1: Upload an Excel/CSV file (must have "Team Name" and "Track" columns, or be first and second columns).
         </p>
-        <textarea id="bulkImportTextarea" class="textarea-field" rows="6" placeholder="CyberForge, Cybersecurity&#10;Solaris AI, CleanTech&#10;OmniChain, Web3" required></textarea>
+        <div style="margin-bottom: 16px;">
+          <input type="file" id="bulkImportFileInput" accept=".xlsx, .xls, .csv" class="input-field" style="padding: 8px;">
+        </div>
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
+          Option 2: Enter 1 team per line (Format: <code>Team Name, Track</code>):
+        </p>
+        <textarea id="bulkImportTextarea" class="textarea-field" rows="6" placeholder="CyberForge, Cybersecurity&#10;Solaris AI, CleanTech&#10;OmniChain, Web3"></textarea>
         <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px;">
           <button type="button" class="btn" onclick="closeAllModals()">Cancel</button>
           <button type="submit" class="btn btn-primary">Import Teams</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Judge Modal (Admin Only) -->
+  <div id="addJudgeModal" class="modal-overlay">
+    <div class="modal-box">
+      <h3 style="font-size: 19px; font-weight: 700; margin-bottom: 8px; letter-spacing: 0.5px;">Add New Judge</h3>
+      <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+        Create a new evaluator account.
+      </p>
+      <form id="addJudgeForm">
+        <div style="margin-bottom: 14px;">
+          <label style="display: block; font-size: 12px; color: var(--gold-400); margin-bottom: 6px; font-weight: 700; text-transform: uppercase;">Full Name *</label>
+          <input type="text" id="newJudgeNameInput" class="input-field" placeholder="e.g. Sarah Chen (Judge 1)" required>
+        </div>
+
+        <div style="margin-bottom: 14px;">
+          <label style="display: block; font-size: 12px; color: var(--gold-400); margin-bottom: 6px; font-weight: 700; text-transform: uppercase;">Identifier *</label>
+          <input type="text" id="newJudgeUsernameInput" class="input-field" placeholder="e.g. judge1" required>
+        </div>
+
+        <div style="margin-bottom: 14px;">
+          <label style="display: block; font-size: 12px; color: var(--gold-400); margin-bottom: 6px; font-weight: 700; text-transform: uppercase;">Email Address *</label>
+          <input type="email" id="newJudgeEmailInput" class="input-field" placeholder="e.g. sarah@vc.com" required>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; font-size: 12px; color: var(--gold-400); margin-bottom: 6px; font-weight: 700; text-transform: uppercase;">Passkey *</label>
+          <input type="text" id="newJudgePasswordInput" class="input-field" placeholder="e.g. password123" required>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn" onclick="closeAllModals()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create Judge</button>
         </div>
       </form>
     </div>
@@ -545,11 +590,29 @@
     </div>
   </div>
 
+  <!-- Feedback Detail Modal (Notes & Scores) -->
+  <div id="feedbackDetailModal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 750px; width: 95%;">
+      <h3 style="font-size: 19px; font-weight: 700; margin-bottom: 6px; letter-spacing: 0.5px;">Detailed Feedback & Notes</h3>
+      <p id="feedbackDetailTeamName" style="color: var(--gold-400); margin-bottom: 16px; font-size: 15px; font-weight: 600; font-family: var(--font-mono);"></p>
+      
+      <div id="feedbackDetailContent" style="display: flex; flex-direction: column; gap: 16px; max-height: 50vh; overflow-y: auto; padding-right: 8px;">
+        <!-- Filled by JS -->
+      </div>
+      
+      <div style="display: flex; justify-content: flex-end; margin-top: 24px;">
+        <button type="button" class="btn btn-primary" style="padding: 8px 16px;" onclick="closeAllModals()">Close</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Notification Toast -->
   <div id="toastContainer" style="position: fixed; bottom: 24px; right: 24px; z-index: 300; display: flex; flex-direction: column; gap: 10px;"></div>
 
   <!-- Supabase Cloud SDK & Configuration -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <!-- XLSX library for Excel parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="config.js"></script>
 
   <!-- Application Logic -->

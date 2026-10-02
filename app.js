@@ -570,6 +570,73 @@ class EpochDatabaseService {
         return updatedJudge;
     }
 
+    addJudge(judgeData, user = this.getCurrentUser()) {
+        this.verifyPermission(user, ['admin'], 'Create Judge Credentials');
+        const users = this.getUsers();
+        
+        const targetUsername = (judgeData.username || '').trim().toLowerCase();
+        const targetEmail = (judgeData.email || '').trim().toLowerCase();
+
+        if (users.find(u => u.username && u.username.toLowerCase() === targetUsername)) {
+            throw new Error(`Username "${targetUsername}" is already taken.`);
+        }
+        if (users.find(u => u.email && u.email.toLowerCase() === targetEmail)) {
+            throw new Error(`Email "${targetEmail}" is already taken.`);
+        }
+
+        const newId = (typeof crypto !== 'undefined' && crypto.randomUUID) 
+            ? crypto.randomUUID() 
+            : '10000000-0000-0000-0000-' + Date.now().toString().slice(-12).padStart(12, '0');
+
+        const newJudge = {
+            id: newId,
+            full_name: (judgeData.full_name || '').trim(),
+            username: targetUsername,
+            email: targetEmail,
+            password: judgeData.password.trim(),
+            role: 'judge'
+        };
+
+        users.push(newJudge);
+        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+        this.broadcast('USERS_UPDATED', { users });
+
+        if (this.isCloudConnected) {
+            fetch(`${this.supabaseUrl}/rest/v1/profiles`, {
+                method: 'POST',
+                headers: this.getSupabaseHeaders(),
+                body: JSON.stringify({
+                    id: newId,
+                    email: targetEmail,
+                    full_name: newJudge.full_name,
+                    role: 'judge'
+                })
+            }).catch(e => console.error('[Supabase Add Judge Err]:', e));
+        }
+
+        return newJudge;
+    }
+
+    deleteJudge(judgeId, user = this.getCurrentUser()) {
+        this.verifyPermission(user, ['admin'], 'Delete Judge Credentials');
+        const users = this.getUsers();
+        const index = users.findIndex(u => u.id === judgeId);
+        if (index === -1) throw new Error(`Judge ${judgeId} not found.`);
+        
+        users.splice(index, 1);
+        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+        this.broadcast('USERS_UPDATED', { users });
+
+        if (this.isCloudConnected) {
+            fetch(`${this.supabaseUrl}/rest/v1/profiles?id=eq.${judgeId}`, {
+                method: 'DELETE',
+                headers: this.getSupabaseHeaders()
+            }).catch(e => console.error('[Supabase Delete Judge Err]:', e));
+        }
+
+        return true;
+    }
+
     getTeams() {
         const teams = JSON.parse(localStorage.getItem(STORAGE_KEYS.TEAMS) || '[]');
         return teams.sort((a, b) => (a.pitch_order || 0) - (b.pitch_order || 0));
@@ -620,6 +687,40 @@ class EpochDatabaseService {
         }
 
         return newTeam;
+    }
+
+    deleteTeam(teamId, user = this.getCurrentUser()) {
+        this.verifyPermission(user, ['admin'], 'Delete Team');
+        let teams = this.getTeams();
+        const index = teams.findIndex(t => t.id === teamId);
+        if (index === -1) throw new Error(`Team ${teamId} not found.`);
+        
+        teams.splice(index, 1);
+        localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(teams));
+        
+        // delete related scores
+        const allScores = JSON.parse(localStorage.getItem(STORAGE_KEYS.SCORES) || '[]');
+        const filteredScores = allScores.filter(s => s.team_id !== teamId);
+        localStorage.setItem(STORAGE_KEYS.SCORES, JSON.stringify(filteredScores));
+        
+        // update active session if it was this team
+        const session = this.getActiveSession();
+        if (session.active_team_id === teamId) {
+            this.markPitchDone(user);
+        }
+
+        this.broadcast('TEAMS_UPDATED', { teams });
+
+        if (this.isCloudConnected) {
+            fetch(`${this.supabaseUrl}/rest/v1/teams?id=eq.${teamId}`, {
+                method: 'DELETE',
+                headers: this.getSupabaseHeaders()
+            }).then(() => {
+                console.log('[Supabase Cloud] Deleted team in PostgreSQL:', teamId);
+            }).catch(e => console.error('[Supabase Delete Team Err]:', e));
+        }
+
+        return true;
     }
 
     bulkImportTeams(teamNamesText, user = this.getCurrentUser()) {
@@ -1377,12 +1478,72 @@ function initAdminActions() {
 
     document.getElementById('bulkImportForm').addEventListener('submit', (e) => {
         e.preventDefault();
+        const fileInput = document.getElementById('bulkImportFileInput');
         const text = document.getElementById('bulkImportTextarea').value;
+
+        if (fileInput && fileInput.files && fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+                    
+                    let teamsText = '';
+                    json.forEach((row, i) => {
+                        if (!row || row.length === 0) return;
+                        if (i === 0 && (String(row[0]).toLowerCase().includes('team') || String(row[0]).toLowerCase().includes('name'))) return;
+                        
+                        const teamName = row[0];
+                        const track = row.length > 1 ? row[1] : 'General';
+                        if (teamName) {
+                            teamsText += `${teamName}, ${track}\n`;
+                        }
+                    });
+                    
+                    const res = dbService.bulkImportTeams(teamsText);
+                    showToast(`Imported ${res.added} new teams from file!`, 'success');
+                    closeAllModals();
+                    document.getElementById('bulkImportForm').reset();
+                } catch (err) {
+                    showToast("Failed to parse file: " + err.message, 'error');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        } else if (text.trim() !== '') {
+            try {
+                const res = dbService.bulkImportTeams(text);
+                showToast(`Imported ${res.added} new teams!`, 'success');
+                closeAllModals();
+                document.getElementById('bulkImportForm').reset();
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        } else {
+            showToast('Please provide a file or text.', 'error');
+        }
+    });
+
+    document.getElementById('btnOpenAddJudgeModal')?.addEventListener('click', () => {
+        openModal('addJudgeModal');
+    });
+
+    document.getElementById('addJudgeForm')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const full_name = document.getElementById('newJudgeNameInput').value;
+        const username = document.getElementById('newJudgeUsernameInput').value;
+        const email = document.getElementById('newJudgeEmailInput').value;
+        const password = document.getElementById('newJudgePasswordInput').value;
+
         try {
-            const res = dbService.bulkImportTeams(text);
-            showToast(`Imported ${res.added} new teams!`, 'success');
+            dbService.addJudge({ full_name, username, email, password });
+            showToast(`Judge "${full_name}" added successfully!`, 'success');
             closeAllModals();
-            document.getElementById('bulkImportForm').reset();
+            document.getElementById('addJudgeForm').reset();
+            renderAdminDashboard();
         } catch (err) {
             showToast(err.message, 'error');
         }
@@ -1472,9 +1633,14 @@ function renderAdminDashboard() {
                     <span style="font-family: monospace; letter-spacing: 2px; color: var(--text-muted); font-size: 14px;">••••••••</span>
                 </td>
                 <td>
-                    <button class="btn" style="padding: 6px 14px; font-size: 12px;" onclick="window.openEditJudgeModal('${j.id}')">
-                        Edit Credentials
-                    </button>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn" style="padding: 6px 14px; font-size: 12px;" onclick="window.openEditJudgeModal('${j.id}')">
+                            Edit
+                        </button>
+                        <button class="btn btn-danger" style="padding: 6px 14px; font-size: 12px;" onclick="window.deleteJudge('${j.id}')">
+                            Delete
+                        </button>
+                    </div>
                 </td>
             </tr>
         `).join('');
@@ -1526,6 +1692,9 @@ function renderAdminDashboard() {
                         <button class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;" onclick="window.resetTeamScores('${team.id}')" title="Reset Scores">
                             Reset
                         </button>
+                        <button class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;" onclick="window.deleteTeam('${team.id}')" title="Delete Team">
+                            Delete
+                        </button>
                     </div>
                 </td>
             </tr>
@@ -1561,6 +1730,30 @@ window.resetTeamScores = function(teamId) {
         try {
             dbService.resetTeamScores(teamId);
             showToast('Scores reset successfully for re-pitch.', 'success');
+        } catch (e) {
+            showToast(e.message, 'error');
+        }
+    }
+};
+
+window.deleteJudge = function(judgeId) {
+    if (confirm('Are you sure you want to delete this judge?')) {
+        try {
+            dbService.deleteJudge(judgeId);
+            showToast('Judge deleted successfully.', 'success');
+            renderAdminDashboard();
+        } catch (e) {
+            showToast(e.message, 'error');
+        }
+    }
+};
+
+window.deleteTeam = function(teamId) {
+    if (confirm('Are you sure you want to delete this team? All associated scores will be lost.')) {
+        try {
+            dbService.deleteTeam(teamId);
+            showToast('Team deleted successfully.', 'success');
+            renderAdminDashboard();
         } catch (e) {
             showToast(e.message, 'error');
         }
@@ -1891,7 +2084,7 @@ function renderFeedbackView() {
     container.innerHTML = reports.map(item => {
         const { team, averages } = item;
         return `
-            <div class="glass-card" style="margin-bottom: 0; background: var(--bg-surface-elevated);">
+            <div class="glass-card" style="margin-bottom: 0; background: var(--bg-surface-elevated); cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="window.viewFeedbackDetails('${team.id}')">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
                     <div>
                         <h3 style="font-size: 18px; font-weight: 800;">${escapeHtml(team.name)}</h3>
@@ -1915,6 +2108,57 @@ function renderFeedbackView() {
         `;
     }).join('');
 }
+
+window.viewFeedbackDetails = function(teamId) {
+    const teams = dbService.getTeams();
+    const team = teams.find(t => t.id === teamId);
+    if (!team) return;
+
+    document.getElementById('feedbackDetailTeamName').textContent = team.name;
+    const content = document.getElementById('feedbackDetailContent');
+    const allScores = dbService.getScores();
+    const teamScores = allScores.filter(s => s.team_id === teamId);
+    const judges = dbService.getJudges();
+
+    if (teamScores.length === 0) {
+        content.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 20px;">No judge scores or notes available yet.</div>`;
+    } else {
+        content.innerHTML = teamScores.map(score => {
+            const judge = judges.find(j => j.id === score.judge_id);
+            const judgeName = judge ? judge.full_name : (score.judge_name || 'Unknown Judge');
+            
+            return `
+                <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                        <h4 style="font-size: 15px; font-weight: 700; color: #fff;">${escapeHtml(judgeName)}</h4>
+                        <div style="font-weight: 800; color: var(--gold-300); font-family: var(--font-mono); font-size: 18px;">
+                            ${score.weighted_score} <span style="font-size: 12px; color: var(--text-secondary);">/ 10</span>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; font-size: 12px;">
+                        <div><span style="color: var(--text-secondary);">Tech:</span> ${score.tech_score}</div>
+                        <div><span style="color: var(--text-secondary);">Impact:</span> ${score.impact_score}</div>
+                        <div><span style="color: var(--text-secondary);">Problem:</span> ${score.problem_score}</div>
+                        <div><span style="color: var(--text-secondary);">Innov.:</span> ${score.innovation_score}</div>
+                        <div><span style="color: var(--text-secondary);">Present.:</span> ${score.presentation_score}</div>
+                        <div><span style="color: var(--text-secondary);">UX:</span> ${score.ux_score}</div>
+                    </div>
+                    ${score.notes && score.notes.trim() !== '' ? `
+                        <div style="background: rgba(0, 0, 0, 0.2); padding: 10px 12px; border-left: 2px solid var(--gold-400); border-radius: 4px; font-size: 13px; color: #e2e8f0; font-style: italic;">
+                            "${escapeHtml(score.notes)}"
+                        </div>
+                    ` : `
+                        <div style="font-size: 13px; color: var(--text-muted); font-style: italic;">
+                            No additional notes provided.
+                        </div>
+                    `}
+                </div>
+            `;
+        }).join('');
+    }
+
+    openModal('feedbackDetailModal');
+};
 
 function renderCriteriaBar(title, val) {
     const pct = (val / 10) * 100;
