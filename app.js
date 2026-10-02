@@ -278,6 +278,39 @@ class EpochDatabaseService {
                     localStorage.setItem(STORAGE_KEYS.SCORES, JSON.stringify(scores));
                 }
 
+                // Load profiles from cloud
+                const profilesRes = await fetch(`${this.supabaseUrl}/rest/v1/profiles?select=*`, {
+                    headers: this.getSupabaseHeaders()
+                });
+                if (profilesRes.ok) {
+                    const profiles = await profilesRes.json();
+                    const localUsers = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
+                    const mergedUsers = profiles.map(p => {
+                        const localUser = localUsers.find(u => u.id === p.id);
+                        return {
+                            ...localUser,
+                            id: p.id,
+                            email: p.email,
+                            full_name: p.full_name,
+                            role: p.role || 'judge',
+                            username: localUser?.username || (p.email ? p.email.split('@')[0] : p.id),
+                            password: localUser?.password || 'password123'
+                        };
+                    });
+                    
+                    // keep users that might be hardcoded and missing from remote
+                    localUsers.forEach(lu => {
+                        if (!mergedUsers.find(mu => mu.id === lu.id)) {
+                            // if it's the admin, keep it always. if it's judge2, maybe it was deleted.
+                            // to avoid ghost judges, we only append if it's admin.
+                            if (lu.role === 'admin') {
+                                mergedUsers.push(lu);
+                            }
+                        }
+                    });
+                    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(mergedUsers));
+                }
+
                 // Connect to Supabase Realtime Broadcast Channels
                 this.setupSupabaseBroadcastChannels();
 
@@ -361,20 +394,43 @@ class EpochDatabaseService {
         this._pollingTimer = setInterval(async () => {
             if (!this.isCloudConnected) return;
             try {
-                const [teamsRes, sessRes, scoresRes] = await Promise.all([
+                const [teamsRes, sessRes, scoresRes, profilesRes] = await Promise.all([
                     fetch(`${this.supabaseUrl}/rest/v1/teams?select=*&order=pitch_order.asc`, { headers: this.getSupabaseHeaders() }),
                     fetch(`${this.supabaseUrl}/rest/v1/active_session?id=eq.1&select=*`, { headers: this.getSupabaseHeaders() }),
-                    fetch(`${this.supabaseUrl}/rest/v1/scores?select=*`, { headers: this.getSupabaseHeaders() })
+                    fetch(`${this.supabaseUrl}/rest/v1/scores?select=*`, { headers: this.getSupabaseHeaders() }),
+                    fetch(`${this.supabaseUrl}/rest/v1/profiles?select=*`, { headers: this.getSupabaseHeaders() })
                 ]);
 
-                if (teamsRes.ok && sessRes.ok && scoresRes.ok) {
+                if (teamsRes.ok && sessRes.ok && scoresRes.ok && profilesRes.ok) {
                     const teams = await teamsRes.json();
                     const sess = await sessRes.json();
                     const scores = await scoresRes.json();
+                    const profiles = await profilesRes.json();
 
                     if (teams) localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(teams));
                     if (sess && sess.length > 0) localStorage.setItem(STORAGE_KEYS.ACTIVE_SESSION, JSON.stringify(sess[0]));
                     if (scores) localStorage.setItem(STORAGE_KEYS.SCORES, JSON.stringify(scores));
+                    if (profiles) {
+                        const localUsers = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
+                        const mergedUsers = profiles.map(p => {
+                            const localUser = localUsers.find(u => u.id === p.id);
+                            return {
+                                ...localUser,
+                                id: p.id,
+                                email: p.email,
+                                full_name: p.full_name,
+                                role: p.role || 'judge',
+                                username: localUser?.username || (p.email ? p.email.split('@')[0] : p.id),
+                                password: localUser?.password || 'password123'
+                            };
+                        });
+                        localUsers.forEach(lu => {
+                            if (!mergedUsers.find(mu => mu.id === lu.id)) {
+                                if (lu.role === 'admin') mergedUsers.push(lu);
+                            }
+                        });
+                        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(mergedUsers));
+                    }
 
                     refreshAllViews();
                 }
