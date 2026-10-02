@@ -39,8 +39,8 @@
 
   /* ── Typography ── */
   --text-primary:   #f1f5f9;
-  --text-secondary: #8a96a8;
-  --text-muted:     #3f4a5a;
+  --text-secondary: #9da8b9;
+  --text-muted:     #4b5563;
   --text-gold:      #f3ce5e;
 
   /* ── Geometry ── */
@@ -79,9 +79,25 @@ body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   min-height: 100vh;
-  line-height: 1.6;
+  line-height: 1.7;
   overflow-x: hidden;
   position: relative;
+}
+
+/* Custom Subtle Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 175, 55, 0.4);
 }
 
 /* Starfield canvas — sits below everything */
@@ -443,16 +459,55 @@ body::after {
   background: var(--bg-surface-card);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 26px;
   box-shadow: var(--shadow-sm);
   margin-bottom: 20px;
   transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.glass-card::before {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  background: conic-gradient(from 0deg, transparent 70%, rgba(212, 175, 55, 0.4) 80%, transparent 100%);
+  animation: rotateGradient 6s linear infinite;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.glass-card:hover::before {
+  opacity: 1;
+}
+
+.glass-card::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  background-color: var(--bg-surface-card);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+  border-radius: calc(var(--radius-lg) - 1px);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.glass-card > * {
+  position: relative;
+  z-index: 2;
+}
+
+@keyframes rotateGradient {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .glass-card:hover {
-  border-color: var(--border-gold-subtle);
+  border-color: transparent;
 }
 
 .card-header {
@@ -593,7 +648,7 @@ body::after {
 }
 
 .teams-table td {
-  padding: 15px 16px;
+  padding: 18px 20px;
   border-bottom: 1px solid var(--border-subtle);
   font-size: 13.5px;
   transition: var(--transition-fast);
@@ -1002,4 +1057,123 @@ body::after {
 .score-override-input:focus {
   border-color: var(--gold-500);
   box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+}
+
+/* ==========================================================================
+   VIBE THEME & LANDING OVERLAY
+   ========================================================================== */
+
+:root {
+  --vibe-bg: var(--bg-primary);
+  --vibe-accent: var(--gold-500);
+  --vibe-text: var(--text-primary);
+  --vibe-ambient: rgba(212, 175, 55, 0.05);
+}
+
+body {
+  background-color: var(--vibe-bg) !important;
+  transition: background-color 2s ease;
+}
+
+.vibe-landing-container {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 10000;
+  background-color: var(--vibe-bg);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+#threeClockCanvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+.vibe-overlay-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.vibe-overlay-content * {
+  pointer-events: auto;
+}
+
+.vibe-time-display {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  letter-spacing: 0.5em;
+  color: var(--vibe-accent);
+  margin-bottom: 20px;
+  text-shadow: 0 0 20px var(--vibe-accent);
+  opacity: 0;
+}
+
+.vibe-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 4rem;
+  letter-spacing: 12px;
+  color: var(--vibe-text);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, #ffffff, var(--vibe-accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  opacity: 0;
+}
+
+.vibe-subtitle {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  color: var(--text-secondary);
+  letter-spacing: 2px;
+  margin-bottom: 50px;
+  opacity: 0;
+}
+
+.vibe-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  color: var(--vibe-text);
+  padding: 16px 40px;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  letter-spacing: 4px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  text-transform: uppercase;
+  opacity: 0;
+}
+
+.vibe-btn:hover {
+  background: var(--vibe-ambient);
+  border-color: var(--vibe-accent);
+  box-shadow: 0 0 30px -5px var(--vibe-accent);
+  transform: translateY(-2px);
+  color: var(--vibe-accent);
+}
+
+.login-card {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(15, 16, 24, 0.4) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1) !important;
 }

@@ -294,7 +294,7 @@ class EpochDatabaseService {
                             full_name: p.full_name,
                             role: p.role || 'judge',
                             username: localUser?.username || (p.email ? p.email.split('@')[0] : p.id),
-                            password: localUser?.password || 'password123'
+                            password: p.password || localUser?.password || 'password123'
                         };
                     });
                     
@@ -421,7 +421,7 @@ class EpochDatabaseService {
                                 full_name: p.full_name,
                                 role: p.role || 'judge',
                                 username: localUser?.username || (p.email ? p.email.split('@')[0] : p.id),
-                                password: localUser?.password || 'password123'
+                                password: p.password || localUser?.password || 'password123'
                             };
                         });
                         localUsers.forEach(lu => {
@@ -623,6 +623,19 @@ class EpochDatabaseService {
         }
 
         this.broadcast('USERS_UPDATED', { users, updatedJudge });
+
+        if (this.isCloudConnected) {
+            fetch(`${this.supabaseUrl}/rest/v1/profiles?id=eq.${judgeId}`, {
+                method: 'PATCH',
+                headers: this.getSupabaseHeaders(),
+                body: JSON.stringify({
+                    email: updatedJudge.email,
+                    full_name: updatedJudge.full_name,
+                    password: updatedJudge.password
+                })
+            }).catch(e => console.error('[Supabase Update Judge Err]:', e));
+        }
+
         return updatedJudge;
     }
 
@@ -665,7 +678,8 @@ class EpochDatabaseService {
                     id: newId,
                     email: targetEmail,
                     full_name: newJudge.full_name,
-                    role: 'judge'
+                    role: 'judge',
+                    password: newJudge.password
                 })
             }).catch(e => console.error('[Supabase Add Judge Err]:', e));
         }
@@ -1441,11 +1455,58 @@ function switchView(viewId) {
         btn.classList.toggle('active', btn.dataset.view === viewId);
     });
 
-    document.querySelectorAll('.view-section').forEach(sec => {
-        sec.classList.toggle('active', sec.id === viewId);
-    });
+    const oldView = document.querySelector('.view-section.active');
+    const newView = document.getElementById(viewId);
 
-    refreshAllViews();
+    if (oldView && oldView.id !== viewId) {
+        gsap.to(oldView, {
+            opacity: 0,
+            y: -20,
+            duration: 0.3,
+            ease: "power2.in",
+            onComplete: () => {
+                oldView.classList.remove('active');
+                oldView.style.opacity = "";
+                oldView.style.transform = "";
+                
+                newView.classList.add('active');
+                refreshAllViews();
+                
+                gsap.fromTo(newView, 
+                    { opacity: 0, y: 30 },
+                    { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }
+                );
+                
+                // Animated data reveal for cards/rows inside new view
+                gsap.fromTo(newView.querySelectorAll('.glass-card, .leaderboard-table tbody tr'),
+                    { opacity: 0, y: 20 },
+                    { opacity: 1, y: 0, duration: 0.4, stagger: 0.05, ease: "power2.out", delay: 0.1 }
+                );
+
+                // Count up numbers
+                const numberEls = newView.querySelectorAll('.count-up-score');
+                numberEls.forEach(el => {
+                    const finalVal = parseFloat(el.dataset.value || el.textContent);
+                    if (!isNaN(finalVal)) {
+                        const obj = { val: 0 };
+                        gsap.to(obj, {
+                            val: finalVal,
+                            duration: 1.2,
+                            ease: "power2.out",
+                            onUpdate: () => {
+                                el.textContent = obj.val.toFixed(2);
+                            }
+                        });
+                    }
+                });
+            }
+        });
+    } else if (!oldView) {
+        newView.classList.add('active');
+        refreshAllViews();
+    } else {
+        refreshAllViews();
+    }
 }
 
 function handleRealtimeEvent(event) {
@@ -1615,8 +1676,13 @@ function initAdminActions() {
             const username = document.getElementById('editJudgeUsernameInput').value;
             const email = document.getElementById('editJudgeEmailInput').value;
             const password = document.getElementById('editJudgePasswordInput').value;
+            const adminVerifyPassword = document.getElementById('editJudgeAdminVerifyInput').value;
 
             try {
+                const currentUser = dbService.getCurrentUser();
+                if (!currentUser || currentUser.password !== adminVerifyPassword) {
+                    throw new Error("Admin password verification failed.");
+                }
                 const updated = dbService.updateJudge(judgeId, { full_name, username, email, password });
                 showToast(`✓ Credentials updated for ${updated.full_name}!`, 'success');
                 closeAllModals();
@@ -1633,7 +1699,7 @@ function renderAdminDashboard() {
     const teams = dbService.getTeams();
     const allScores = dbService.getScores();
     const progress = dbService.getActivePitchProgress();
-    const judges = dbService.getJudges();
+    const users = dbService.getUsers();
 
     const activeTeam = teams.find(t => t.id === session.active_team_id);
 
@@ -1675,7 +1741,7 @@ function renderAdminDashboard() {
     // Render Judge Accounts Table
     const judgeTableBody = document.getElementById('adminJudgesTableBody');
     if (judgeTableBody) {
-        judgeTableBody.innerHTML = judges.map((j, i) => `
+        judgeTableBody.innerHTML = users.map((j, i) => `
             <tr>
                 <td style="font-weight: 700; color: var(--text-muted); font-family: var(--font-mono);">Slot ${i + 1}</td>
                 <td>
@@ -1759,8 +1825,8 @@ function renderAdminDashboard() {
 }
 
 window.openEditJudgeModal = function(judgeId) {
-    const judges = dbService.getJudges();
-    const judge = judges.find(j => j.id === judgeId);
+    const users = dbService.getUsers();
+    const judge = users.find(j => j.id === judgeId);
     if (!judge) return;
 
     document.getElementById('editJudgeIdInput').value = judge.id;
@@ -1768,6 +1834,7 @@ window.openEditJudgeModal = function(judgeId) {
     document.getElementById('editJudgeUsernameInput').value = judge.username || '';
     document.getElementById('editJudgeEmailInput').value = judge.email;
     document.getElementById('editJudgePasswordInput').value = judge.password || '';
+    document.getElementById('editJudgeAdminVerifyInput').value = '';
 
     openModal('editJudgeModal');
 };
@@ -1993,7 +2060,18 @@ function setCriteriaScore(criteriaId, val) {
 function updateLiveWeightedCalculation() {
     const weighted = calculateJudgeWeightedScore(currentScores);
     const el = document.getElementById('judgeLiveWeightedScore');
-    if (el) el.textContent = weighted.toFixed(2);
+    if (el) {
+        const startVal = parseFloat(el.textContent) || 0;
+        const obj = { val: startVal };
+        gsap.to(obj, {
+            val: weighted,
+            duration: 0.4,
+            ease: "power2.out",
+            onUpdate: () => {
+                el.textContent = obj.val.toFixed(2);
+            }
+        });
+    }
 }
 
 function initJudgeActions() {
@@ -2115,13 +2193,13 @@ function renderLeaderboardView() {
                 <td style="font-weight: 800; font-size: 16px;">${escapeHtml(row.teamName)}</td>
                 <td><span class="pitch-track">${escapeHtml(row.track || 'General')}</span></td>
                 <td style="font-size: 13px; color: var(--text-secondary);">${row.judgeCount} judges</td>
-                <td style="color: #94a3b8;">${row.criteria.tech.toFixed(1)}</td>
-                <td style="color: #94a3b8;">${row.criteria.impact.toFixed(1)}</td>
-                <td style="color: #94a3b8;">${row.criteria.problem.toFixed(1)}</td>
-                <td style="color: #94a3b8;">${row.criteria.innovation.toFixed(1)}</td>
-                <td style="color: #94a3b8;">${row.criteria.presentation.toFixed(1)}</td>
-                <td style="color: #94a3b8;">${row.criteria.ux.toFixed(1)}</td>
-                <td><span class="score-badge">${row.finalScore > 0 ? row.finalScore.toFixed(2) : '0.00'}</span></td>
+                <td style="color: #94a3b8;" class="count-up-score" data-value="${row.criteria.tech.toFixed(1)}">${row.criteria.tech.toFixed(1)}</td>
+                <td style="color: #94a3b8;" class="count-up-score" data-value="${row.criteria.impact.toFixed(1)}">${row.criteria.impact.toFixed(1)}</td>
+                <td style="color: #94a3b8;" class="count-up-score" data-value="${row.criteria.problem.toFixed(1)}">${row.criteria.problem.toFixed(1)}</td>
+                <td style="color: #94a3b8;" class="count-up-score" data-value="${row.criteria.innovation.toFixed(1)}">${row.criteria.innovation.toFixed(1)}</td>
+                <td style="color: #94a3b8;" class="count-up-score" data-value="${row.criteria.presentation.toFixed(1)}">${row.criteria.presentation.toFixed(1)}</td>
+                <td style="color: #94a3b8;" class="count-up-score" data-value="${row.criteria.ux.toFixed(1)}">${row.criteria.ux.toFixed(1)}</td>
+                <td><span class="score-badge count-up-score" data-value="${row.finalScore > 0 ? row.finalScore.toFixed(2) : '0.00'}">${row.finalScore > 0 ? row.finalScore.toFixed(2) : '0.00'}</span></td>
             </tr>
         `;
     }).join('');

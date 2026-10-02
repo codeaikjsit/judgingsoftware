@@ -15,6 +15,19 @@
 </head>
 <body>
 
+  <!-- =========================================================================
+       VIBE-CODED LANDING PAGE & 3D CLOCK OVERLAY
+       ========================================================================= -->
+  <div id="vibeLandingContainer" class="vibe-landing-container">
+    <div id="threeClockCanvas"></div>
+    <div class="vibe-overlay-content">
+      <div class="vibe-time-display" id="vibeTimeDisplay">00:00:00</div>
+      <h1 class="vibe-title">T I M E &nbsp; I S &nbsp; R E L A T I V E</h1>
+      <p class="vibe-subtitle">The Epoch architectural core awaits</p>
+      <button id="vibeEnterBtn" class="vibe-btn">INITIALIZE SYSTEM</button>
+    </div>
+  </div>
+
   <!-- Starfield background -->
   <canvas id="starfieldCanvas"></canvas>
 
@@ -158,15 +171,15 @@
       <div class="glass-card" style="margin-bottom: 24px;">
         <div class="card-header">
           <div class="card-title">
-            Judge Registry & Authentication Node
+            User Registry & Authentication Node
           </div>
           <div style="display: flex; gap: 10px; align-items: center;">
-            <span class="brand-tag">Panel Judges Configured</span>
-            <button id="btnOpenAddJudgeModal" class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">+ Add Judge</button>
+            <span class="brand-tag">Platform Users Configured</span>
+            <button id="btnOpenAddJudgeModal" class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">+ Add User</button>
           </div>
         </div>
         <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;">
-          Manage the dedicated judge panel accounts. As an admin, you can add/remove judges, edit display names, usernames, emails, and set login passkeys.
+          Manage the dedicated judge and admin accounts. As an admin, you can add/remove users, edit display names, usernames, emails, and set login passkeys (requires your admin passkey to confirm).
         </p>
         <div style="overflow-x: auto;">
           <table class="teams-table">
@@ -242,9 +255,6 @@
           <div style="display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--gold-300); background: rgba(212, 175, 55, 0.08); border: 1px solid var(--border-gold-subtle); padding: 8px 16px; border-radius: var(--radius-full);">
             <span class="pulse-dot"></span> Real-time listening active for Admin triggers
           </div>
-          <button type="button" id="btnJudgeDemoActivate" class="btn btn-primary" style="font-size: 12.5px; padding: 8px 16px;">
-            Simulate Admin Pitch Activation
-          </button>
         </div>
       </div>
 
@@ -504,9 +514,14 @@
           <input type="email" id="editJudgeEmailInput" class="input-field" placeholder="e.g. sarah@vc.com" required>
         </div>
 
-        <div style="margin-bottom: 20px;">
+        <div style="margin-bottom: 14px;">
           <label style="display: block; font-size: 12px; color: var(--gold-400); margin-bottom: 6px; font-weight: 700; text-transform: uppercase;">Passkey *</label>
           <input type="text" id="editJudgePasswordInput" class="input-field" placeholder="e.g. password123" required>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; font-size: 12px; color: var(--gold-400); margin-bottom: 6px; font-weight: 700; text-transform: uppercase;">Admin Password Verification *</label>
+          <input type="password" id="editJudgeAdminVerifyInput" class="input-field" placeholder="Enter your admin passkey to confirm" required>
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 10px;">
@@ -617,6 +632,19 @@
 
   <!-- Application Logic -->
   <script src="app.js"></script>
+
+  <!-- External Libraries for Vibe & Animation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <!-- Vibe Theme Controller & 3D Clock -->
+  <script src="vibe.js"></script>
+
   <!-- Starfield Animation -->
   <script>
   (function () {

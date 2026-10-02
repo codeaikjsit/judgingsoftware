@@ -20,16 +20,17 @@ CREATE TABLE public.profiles (
     email TEXT UNIQUE NOT NULL,
     full_name TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'judge' CHECK (role IN ('admin', 'judge')),
+    password TEXT NOT NULL DEFAULT 'password123',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Seed Default Organizers & Judges
-INSERT INTO public.profiles (id, email, full_name, role) VALUES
-    ('11111111-1111-1111-1111-111111111111', 'admin@epoch.org', 'Lead Organizer (Admin)', 'admin'),
-    ('22222222-2222-2222-2222-222222222222', 'sarah@vc.com', 'Sarah Chen (Judge 1)', 'judge'),
-    ('33333333-3333-3333-3333-333333333333', 'marcus@tech.io', 'Marcus Vance (Judge 2)', 'judge'),
-    ('44444444-4444-4444-4444-444444444444', 'priya@ai.dev', 'Priya Sharma (Judge 3)', 'judge'),
-    ('55555555-5555-5555-5555-555555555555', 'alex@design.co', 'Alex Rivera (Judge 4)', 'judge')
+INSERT INTO public.profiles (id, email, full_name, role, password) VALUES
+    ('11111111-1111-1111-1111-111111111111', 'admin@epoch.org', 'Lead Organizer (Admin)', 'admin', 'password123'),
+    ('22222222-2222-2222-2222-222222222222', 'sarah@vc.com', 'Sarah Chen (Judge 1)', 'judge', 'password123'),
+    ('33333333-3333-3333-3333-333333333333', 'marcus@tech.io', 'Marcus Vance (Judge 2)', 'judge', 'password123'),
+    ('44444444-4444-4444-4444-444444444444', 'priya@ai.dev', 'Priya Sharma (Judge 3)', 'judge', 'password123'),
+    ('55555555-5555-5555-5555-555555555555', 'alex@design.co', 'Alex Rivera (Judge 4)', 'judge', 'password123')
 ON CONFLICT (email) DO NOTHING;
 
 -- 4. TEAMS TABLE
